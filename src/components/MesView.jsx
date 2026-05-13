@@ -195,6 +195,36 @@ const PontualidadeResumo = ({ pont }) => {
   );
 };
 
+// ─── SALDO INPUT ─────────────────────────────────────────────────────────────
+const fmtSaldo = v => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
+
+const SaldoInput = ({ value, onChange }) => {
+  const [focused, setFocused] = useState(false);
+  const [raw, setRaw] = useState('');
+
+  const handleFocus = () => {
+    setRaw(parseFloat((value || 0).toFixed(2)).toString().replace('.', ','));
+    setFocused(true);
+  };
+  const handleChange = e => setRaw(e.target.value);
+  const handleBlur = () => {
+    const num = parseFloat(raw.replace(/\./g, '').replace(',', '.')) || 0;
+    onChange(num);
+    setFocused(false);
+  };
+
+  return (
+    <input
+      type="text"
+      value={focused ? raw : fmtSaldo(value)}
+      onFocus={handleFocus}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      style={{ width: 160, textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--blue)' }}
+    />
+  );
+};
+
 // ─── MAIN MES VIEW ───────────────────────────────────────────────────────────
 export default function MesView({ mesData, ano, mes, store, onDeleted }) {
   const { confirm, Dialog } = useConfirm();
@@ -254,9 +284,10 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
           <label style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, whiteSpace: 'nowrap' }}>
             Saldo Inicial do Mês (R$)
           </label>
-          <input type="number" step="0.01" value={mesData.saldo_inicial}
-            onChange={e => store.updateMes(ano, mes, { saldo_inicial: parseFloat(e.target.value) || 0 })}
-            style={{ width: 160, textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--blue)' }} />
+          <SaldoInput
+            value={mesData.saldo_inicial}
+            onChange={v => store.updateMes(ano, mes, { saldo_inicial: v })}
+          />
           <span style={{ color: 'var(--muted)', fontSize: 12 }}>Edite apenas se o saldo não foi carregado automaticamente.</span>
         </div>
       </Card>

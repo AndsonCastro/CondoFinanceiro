@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#131825"/>
+  <!-- Prédio -->
+  <rect x="136" y="200" width="240" height="220" rx="8" fill="#1A2030"/>
+  <rect x="136" y="200" width="240" height="220" rx="8" fill="none" stroke="#232B3E" stroke-width="4"/>
+  <!-- Telhado / triângulo -->
+  <polygon points="116,210 256,110 396,210" fill="#10D996"/>
+  <!-- Janelas -->
+  <rect x="168" y="240" width="44" height="36" rx="4" fill="#10D996" opacity="0.3"/>
+  <rect x="234" y="240" width="44" height="36" rx="4" fill="#10D996" opacity="0.3"/>
+  <rect x="300" y="240" width="44" height="36" rx="4" fill="#10D996" opacity="0.3"/>
+  <rect x="168" y="300" width="44" height="36" rx="4" fill="#10D996" opacity="0.5"/>
+  <rect x="234" y="300" width="44" height="36" rx="4" fill="#10D996" opacity="0.5"/>
+  <rect x="300" y="300" width="44" height="36" rx="4" fill="#10D996" opacity="0.5"/>
+  <!-- Porta -->
+  <rect x="214" y="355" width="84" height="65" rx="6" fill="#10D996" opacity="0.8"/>
+  <!-- Símbolo R$ -->
+  <text x="256" y="406" font-family="Arial,sans-serif" font-size="32" font-weight="bold" fill="#0C0F1A" text-anchor="middle">R$</text>
+</svg>

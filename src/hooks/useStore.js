@@ -1,5 +1,17 @@
 import { useState, useCallback, useEffect } from 'react';
-import { loadData, saveData, SEED_DATA, createMes, calcTotais, uid, PONTUALIDADE_TOTAL_UNIDADES } from '../utils/data';
+import { loadData, saveData, createMes, calcTotais, uid, PONTUALIDADE_TOTAL_UNIDADES } from '../utils/data';
+
+const EMPTY_DATA = {
+  config: {
+    nome_condominio: 'Meu Condomínio',
+    taxa_condominio: 50,
+    contatos: {},
+    fundo_reserva_meta: 0,
+    orcamento: {},
+    despesas_recorrentes: [],
+  },
+  anos: {},
+};
 
 const deepMerge = (target, source) => {
   const result = { ...target };
@@ -16,8 +28,7 @@ const deepMerge = (target, source) => {
 export default function useStore() {
   const [data, setData] = useState(() => {
     const stored = loadData();
-    // Se não tiver dados, carrega seed
-    if (!stored.anos || Object.keys(stored.anos).length === 0) return SEED_DATA;
+    if (!stored.anos || Object.keys(stored.anos).length === 0) return EMPTY_DATA;
     return stored;
   });
 
@@ -228,7 +239,7 @@ export default function useStore() {
   }, []);
 
   const resetToSeed = useCallback(() => {
-    setData(SEED_DATA);
+    setData(EMPTY_DATA);
   }, []);
 
   return {

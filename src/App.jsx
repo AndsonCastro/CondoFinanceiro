@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
-import { BarChart3, CalendarDays, Settings, Plus, ChevronDown, ChevronRight, Save, FolderOpen, AlertTriangle } from 'lucide-react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { BarChart3, CalendarDays, Settings, Plus, ChevronDown, ChevronRight, Save, FolderOpen, AlertTriangle, Menu, X } from 'lucide-react';
 import useStore from './hooks/useStore';
 import { MESES, MESES_FULL, calcTotais, fmt, exportJSON, importJSON } from './utils/data';
 import MesView from './components/MesView';
@@ -8,8 +8,22 @@ import ConfigView from './components/ConfigView';
 import InadimplenciaView from './components/InadimplenciaView';
 import { Btn, Modal, Badge } from './components/UI';
 
+// ─── HOOK MOBILE ─────────────────────────────────────────────────────────────
+function useIsMobile() {
+  const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
+  const [mobile, setMobile] = useState(isTouch);
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    const fn = (e) => setMobile(e.matches);
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, []);
+  return mobile;
+}
+
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-function Sidebar({ store, nav, setNav }) {
+function Sidebar({ store, nav, setNav, open, onClose }) {
+  const isMobile = useIsMobile();
   const anos = store.getAnos();
   const [expanded, setExpanded] = useState(() => {
     const a = store.getAnos();
@@ -69,10 +83,26 @@ function Sidebar({ store, nav, setNav }) {
     setModalNovoMes(false);
   };
 
+  const navAndClose = (navObj) => { setNav(navObj); if (isMobile) onClose(); };
+
   return (
+    <>
+      {/* Overlay escuro no mobile */}
+      {isMobile && open && (
+        <div onClick={onClose} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 99
+        }} />
+      )}
     <aside style={{
       width: 230, flexShrink: 0, background: 'var(--surface)', borderRight: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column', height: '100vh', position: 'sticky', top: 0, overflow: 'hidden'
+      display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden',
+      ...(isMobile ? {
+        position: 'fixed', top: 0, left: 0, zIndex: 100,
+        transform: open ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.25s ease',
+      } : {
+        position: 'sticky', top: 0,
+      })
     }}>
       {/* Logo */}
       <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid var(--border)' }}>
@@ -94,7 +124,7 @@ function Sidebar({ store, nav, setNav }) {
               onMouseLeave={e => { if (!(nav.type === 'dashboard' && nav.ano === ano)) e.currentTarget.style.background = 'transparent'; }}>
               {expanded[ano] ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
               <BarChart3 size={13} />
-              <span style={{ flex: 1, textAlign: 'left' }} onClick={(e) => { e.stopPropagation(); setNav({ type: 'dashboard', ano }); }}>{ano}</span>
+              <span style={{ flex: 1, textAlign: 'left' }} onClick={(e) => { e.stopPropagation(); navAndClose({ type: 'dashboard', ano }); }}>{ano}</span>
             </button>
 
             {expanded[ano] && (
@@ -103,7 +133,7 @@ function Sidebar({ store, nav, setNav }) {
                   const t = calcTotais(mesData);
                   const isActive = nav.type === 'mes' && nav.ano === ano && nav.mes === mesData.mes;
                   return (
-                    <button key={mesData.id} onClick={() => setNav({ type: 'mes', ano, mes: mesData.mes })}
+                    <button key={mesData.id} onClick={() => navAndClose({ type: 'mes', ano, mes: mesData.mes })}
                       style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, border: 'none',
                         background: isActive ? 'var(--surface2)' : 'transparent',
                         color: isActive ? 'var(--text)' : 'var(--muted)',
@@ -161,7 +191,7 @@ function Sidebar({ store, nav, setNav }) {
       </div>
 
       {/* Inadimplência link */}
-      <button onClick={() => setNav({ type: 'inadimplencia' })}
+      <button onClick={() => navAndClose({ type: 'inadimplencia' })}
         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 18px',
           background: nav.type === 'inadimplencia' ? 'var(--surface2)' : 'transparent', border: 'none',
           color: nav.type === 'inadimplencia' ? 'var(--red)' : 'var(--muted)', cursor: 'pointer', fontSize: 13, transition: 'background 0.15s' }}>
@@ -169,7 +199,7 @@ function Sidebar({ store, nav, setNav }) {
       </button>
 
       {/* Settings link */}
-      <button onClick={() => setNav({ type: 'config' })}
+      <button onClick={() => navAndClose({ type: 'config' })}
         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px 14px',
           background: nav.type === 'config' ? 'var(--surface2)' : 'transparent', border: 'none',
           color: nav.type === 'config' ? 'var(--text)' : 'var(--muted)', cursor: 'pointer', fontSize: 13, transition: 'background 0.15s' }}>
@@ -203,6 +233,7 @@ function Sidebar({ store, nav, setNav }) {
         </div>
       </Modal>
     </aside>
+    </>
   );
 }
 
@@ -210,6 +241,8 @@ function Sidebar({ store, nav, setNav }) {
 export default function App() {
   const store = useStore();
   const anos = store.getAnos();
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [nav, setNav] = useState(() => {
     if (!anos.length) return { type: 'config' };
@@ -223,6 +256,15 @@ export default function App() {
   });
 
   const renderContent = () => {
+    if (!anos.length && nav.type !== 'config') return (
+      <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16, textAlign: 'center' }}>
+        <div style={{ fontSize: 48 }}>🏢</div>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Nenhum dado carregado</h2>
+        <p style={{ color: 'var(--muted)', fontSize: 14, maxWidth: 320, margin: 0 }}>
+          Clique em <strong>Carregar</strong> na barra lateral para abrir seu arquivo <code>.json</code> e começar.
+        </p>
+      </div>
+    );
     if (nav.type === 'config') {
       return <ConfigView config={store.config} updateConfig={store.updateConfig}
         data={store.data} importData={store.importData} resetToSeed={store.resetToSeed} />;
@@ -245,8 +287,18 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar store={store} nav={nav} setNav={setNav} />
-      <main style={{ flex: 1, overflow: 'auto', padding: '28px 32px', minWidth: 0 }}>
+      <Sidebar store={store} nav={nav} setNav={setNav} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <main style={{ flex: 1, overflow: 'auto', padding: isMobile ? '16px' : '28px 32px', minWidth: 0 }}>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(true)} style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16,
+            background: 'var(--surface)', border: '1px solid var(--border2)',
+            color: 'var(--text)', borderRadius: 8, padding: '8px 14px',
+            cursor: 'pointer', fontSize: 13, fontWeight: 600
+          }}>
+            <Menu size={16} /> Menu
+          </button>
+        )}
         {renderContent()}
       </main>
     </div>
