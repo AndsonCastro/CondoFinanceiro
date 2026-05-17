@@ -1,4 +1,4 @@
-const CACHE = 'condofinanceiro-v3';
+const CACHE = 'condofinanceiro-v4';
 
 const PRECACHE = [
   '/',
