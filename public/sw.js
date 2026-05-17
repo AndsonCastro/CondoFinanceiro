@@ -1,11 +1,6 @@
-const CACHE = 'condofinanceiro-v4';
+const CACHE = 'condofinanceiro-v5';
 
 const PRECACHE = [
-  '/',
-  '/index.html',
-  '/static/js/main.chunk.js',
-  '/static/js/bundle.js',
-  '/static/css/main.chunk.css',
   '/manifest.json',
   '/icon.svg',
 ];
@@ -30,12 +25,47 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith(self.location.origin)) return;
 
+  const url = new URL(e.request.url);
+  const isHtml = url.pathname === '/' || url.pathname.endsWith('.html');
+  const isStaticAsset = url.pathname.startsWith('/static/');
+
+  if (isHtml) {
+    // Network-first para HTML: sempre busca versão nova, cai no cache só se offline
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res && res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  if (isStaticAsset) {
+    // Cache-first para JS/CSS (nomes com hash — nunca mudam)
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if (cached) return cached;
+        return fetch(e.request).then(res => {
+          if (res && res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        });
+      })
+    );
+    return;
+  }
+
+  // Demais recursos: stale-while-revalidate
   e.respondWith(
     caches.match(e.request).then(cached => {
       const network = fetch(e.request).then(res => {
         if (res && res.status === 200 && res.type !== 'opaque') {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
         }
         return res;
       }).catch(() => cached);
