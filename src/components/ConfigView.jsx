@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
-import { Settings, Upload, Download, RotateCcw, Database, Phone, Target, RefreshCw, PieChart, Plus, Trash2, MessageCircle } from 'lucide-react';
+import { Settings, Upload, Download, RotateCcw, Database, Phone, Target, RefreshCw, PieChart, Plus, Trash2, MessageCircle, BookOpen } from 'lucide-react';
 import { Card, Btn, SectionHeader, useConfirm } from './UI';
 import { exportJSON, importJSON, CATEGORIAS_DESPESA, uid } from '../utils/data';
+import { exportarParaObsidian } from '../utils/obsidian';
 import { getAllAptos } from './ApartamentosChecklist';
 
 const TODOS_APTOS = getAllAptos();
@@ -80,6 +81,15 @@ export default function ConfigView({ config, updateConfig, data, importData, res
   const handleSave = () => {
     updateConfig(form);
     showMsg('✅ Configurações salvas!');
+  };
+
+  const handleExportObsidian = async () => {
+    try {
+      const total = await exportarParaObsidian(data);
+      showMsg(`✅ ${total} arquivos exportados para o Obsidian!`);
+    } catch (e) {
+      if (e.name !== 'AbortError') showMsg('❌ ' + e.message);
+    }
   };
 
   const handleExport = () => {
@@ -180,6 +190,16 @@ export default function ConfigView({ config, updateConfig, data, importData, res
           </Btn>
           <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
         </div>
+      </Card>
+
+      <Card style={{ marginBottom: 16 }}>
+        <SectionHeader><BookOpen size={13} style={{ display: 'inline', marginRight: 6 }} /> Obsidian — Mente Compartilhada</SectionHeader>
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
+          Exporta relatórios mensais, resumos anuais e contatos dos apartamentos como notas <code>.md</code> direto para o seu vault. Selecione a pasta <strong>Condomínio</strong> dentro do vault <strong>MinhaMente</strong>.
+        </p>
+        <Btn variant="primary" onClick={handleExportObsidian} style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.5)', color: '#a78bfa' }}>
+          <BookOpen size={14} /> Sincronizar com Obsidian
+        </Btn>
       </Card>
 
       {/* FUNDO DE RESERVA */}
