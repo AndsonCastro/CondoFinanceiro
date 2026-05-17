@@ -80,7 +80,7 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
     if (!tel) return null;
     const nome = c.nome || key;
     const nomeMes = MESES_FULL[(mes || 1) - 1];
-    const msg = `Olá, ${nome}! Passando para lembrar que a taxa de condomínio referente a ${nomeMes}/${ano}, no valor de R$ ${TAXA.toFixed(2)}, ainda não foi registrada em nosso sistema. Por favor, efetue o pagamento o quanto antes para evitar juros. Obrigado! — ${nomeCondominio || 'Condomínio'}`;
+    const msg = `Olá, ${nome}! Passando para lembrar que a taxa de condomínio referente a ${nomeMes}/${ano}, no valor de R$ ${TAXA.toFixed(2)}, ainda não foi registrada em nosso sistema. Por favor, efetue o pagamento o quanto antes. Obrigado! — ${nomeCondominio || 'Condomínio'}`;
     return `https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`;
   };
 
@@ -228,7 +228,7 @@ export default function ApartamentosChecklist({ pagamentos = {}, onChange, conta
       if (!tel) return;
       const nome = c.nome || key;
       const nomeMes = MESES_FULL[(mes || 1) - 1];
-      const msg = `Olá, ${nome}! Passando para lembrar que a taxa de condomínio referente a ${nomeMes}/${ano}, no valor de R$ ${TAXA.toFixed(2)}, ainda não foi registrada em nosso sistema. Por favor, efetue o pagamento o quanto antes para evitar juros. Obrigado! — ${nomeCondominio || 'Condomínio'}`;
+      const msg = `Olá, ${nome}! Passando para lembrar que a taxa de condomínio referente a ${nomeMes}/${ano}, no valor de R$ ${TAXA.toFixed(2)}, ainda não foi registrada em nosso sistema. Por favor, efetue o pagamento o quanto antes. Obrigado! — ${nomeCondominio || 'Condomínio'}`;
       setTimeout(() => window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank'), i * 500);
     });
   };

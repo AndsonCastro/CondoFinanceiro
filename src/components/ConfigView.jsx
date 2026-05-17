@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Settings, Upload, Download, RotateCcw, Database, Phone, Target, RefreshCw, PieChart, Plus, Trash2 } from 'lucide-react';
+import { Settings, Upload, Download, RotateCcw, Database, Phone, Target, RefreshCw, PieChart, Plus, Trash2, MessageCircle } from 'lucide-react';
 import { Card, Btn, SectionHeader, useConfirm } from './UI';
 import { exportJSON, importJSON, CATEGORIAS_DESPESA, uid } from '../utils/data';
 import { getAllAptos } from './ApartamentosChecklist';
@@ -13,7 +13,7 @@ export default function ConfigView({ config, updateConfig, data, importData, res
   const [contatosForm, setContatosForm] = useState(() => {
     const base = {};
     TODOS_APTOS.forEach(key => {
-      base[key] = { nome: '', tel1: '', tel2: '', ...(config.contatos?.[key] || {}) };
+      base[key] = { nome: '', tel1: '', tel2: '', proprietario: '', contato1: '', contato2: '', ...(config.contatos?.[key] || {}) };
     });
     return base;
   });
@@ -26,6 +26,8 @@ export default function ConfigView({ config, updateConfig, data, importData, res
   const [novaRec, setNovaRec] = useState({ descricao: '', categoria: CATEGORIAS_DESPESA[0], valor: '' });
   const fileRef = useRef();
   const { confirm, Dialog } = useConfirm();
+  const [avisoMsg, setAvisoMsg] = useState(() => localStorage.getItem('condo_aviso_msg') || 'Olá! Passando para deixar um aviso importante sobre o condomínio.');
+  const [avisoModal, setAvisoModal] = useState(null);
 
   const updateContato = (key, field, value) => {
     setContatosForm(f => ({ ...f, [key]: { ...f[key], [field]: value } }));
@@ -57,6 +59,20 @@ export default function ConfigView({ config, updateConfig, data, importData, res
     const novas = recorrentesForm.filter(r => r.id !== id);
     setRecorrentesForm(novas);
     updateConfig({ despesas_recorrentes: novas });
+  };
+
+  const handleAvisoSend = () => {
+    const row = contatosForm[avisoModal] || {};
+    const tel1 = (row.tel1 || '').replace(/\D/g, '');
+    const contato1 = (row.contato1 || '').replace(/\D/g, '');
+    localStorage.setItem('condo_aviso_msg', avisoMsg);
+    const enc = encodeURIComponent(avisoMsg);
+    let delay = 0;
+    [tel1, contato1].filter(Boolean).forEach(tel => {
+      setTimeout(() => window.open(`https://wa.me/55${tel}?text=${enc}`, '_blank'), delay);
+      delay += 400;
+    });
+    setAvisoModal(null);
   };
 
   const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
@@ -97,6 +113,29 @@ export default function ConfigView({ config, updateConfig, data, importData, res
   return (
     <div className="fade-in">
       <Dialog />
+
+      {avisoModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 480, maxWidth: '90vw' }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Aviso via WhatsApp — {avisoModal}</h3>
+            <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
+              {[contatosForm[avisoModal]?.nome && `Condômino: ${contatosForm[avisoModal].nome}${contatosForm[avisoModal]?.tel1 ? ` (${contatosForm[avisoModal].tel1})` : ''}`, contatosForm[avisoModal]?.proprietario && `Proprietário: ${contatosForm[avisoModal].proprietario}${contatosForm[avisoModal]?.contato1 ? ` (${contatosForm[avisoModal].contato1})` : ''}`].filter(Boolean).join(' · ') || 'Nenhum contato com nome cadastrado.'}
+            </p>
+            <textarea
+              value={avisoMsg}
+              onChange={e => setAvisoMsg(e.target.value)}
+              rows={5}
+              style={{ width: '100%', resize: 'vertical', fontSize: 13, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)', fontFamily: 'var(--font-ui)', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+              <button onClick={() => setAvisoModal(null)} style={{ padding: '8px 16px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
+              <button onClick={handleAvisoSend} disabled={!contatosForm[avisoModal]?.tel1 && !contatosForm[avisoModal]?.contato1} style={{ padding: '8px 16px', background: '#1a3a1a', border: '1px solid #25D366', borderRadius: 7, color: '#25D366', cursor: 'pointer', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <MessageCircle size={14} /> Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
           <Settings size={22} /> Configurações
@@ -226,50 +265,54 @@ export default function ConfigView({ config, updateConfig, data, importData, res
           onChange={e => setFiltroApto(e.target.value)}
           style={{ width: '100%', marginBottom: 12 }}
         />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 400, overflowY: 'auto' }}>
-          {/* Cabeçalho */}
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 1fr 1fr 90px', gap: 8, padding: '4px 8px' }}>
-            {['Apto', 'Nome do Condômino', 'Telefone 1', 'Telefone 2', 'Inabitável'].map(h => (
-              <span key={h} style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: h === 'Inabitável' ? 'center' : 'left' }}>{h}</span>
-            ))}
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: 940 }}>
+            {/* Cabeçalho */}
+            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 110px 110px 1fr 110px 110px 80px 46px', gap: 6, padding: '4px 8px 8px', marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Apto</span>
+              <span style={{ fontSize: 10, color: 'var(--blue)', fontWeight: 700, letterSpacing: 1 }}>— CONDÔMINO —</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Telefone 1</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Telefone 2</span>
+              <span style={{ fontSize: 10, color: 'var(--yellow)', fontWeight: 700, letterSpacing: 1 }}>— PROPRIETÁRIO —</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Contato 1</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Contato 2</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Inabitável</span>
+              <span style={{ fontSize: 10, color: '#25D366', fontWeight: 700, letterSpacing: 1, textAlign: 'center' }}>AVISO</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {TODOS_APTOS.filter(key => key.toLowerCase().includes(filtroApto.toLowerCase())).map(key => {
+                const inabitavel = contatosForm[key]?.inabitavel || false;
+                const row = contatosForm[key] || {};
+                return (
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 110px 110px 1fr 110px 110px 80px 46px', gap: 6, alignItems: 'center', padding: '4px 8px', borderRadius: 8, background: inabitavel ? 'rgba(255,77,109,0.07)' : 'var(--surface2)', opacity: inabitavel ? 0.7 : 1 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: inabitavel ? 'var(--red)' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{key}</span>
+                    <input value={row.nome || ''} onChange={e => updateContato(key, 'nome', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', opacity: inabitavel ? 0.4 : 1 }} />
+                    <input value={row.tel1 || ''} onChange={e => updateContato(key, 'tel1', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }} />
+                    <input placeholder="Opcional" value={row.tel2 || ''} onChange={e => updateContato(key, 'tel2', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }} />
+                    <input value={row.proprietario || ''} onChange={e => updateContato(key, 'proprietario', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', opacity: inabitavel ? 0.4 : 1 }} />
+                    <input value={row.contato1 || ''} onChange={e => updateContato(key, 'contato1', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }} />
+                    <input placeholder="Opcional" value={row.contato2 || ''} onChange={e => updateContato(key, 'contato2', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }} />
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <input type="checkbox" checked={inabitavel} onChange={e => updateContato(key, 'inabitavel', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--red)' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      {(row.tel1 || row.contato1) && !inabitavel && (
+                        <button
+                          onClick={() => setAvisoModal(key)}
+                          title="Enviar aviso personalizado via WhatsApp"
+                          style={{ width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a3a1a', color: '#25D366', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#25D36633'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = '#1a3a1a'; }}
+                        >
+                          <MessageCircle size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          {TODOS_APTOS.filter(key => key.toLowerCase().includes(filtroApto.toLowerCase())).map(key => {
-            const inabitavel = contatosForm[key]?.inabitavel || false;
-            return (
-              <div key={key} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 1fr 1fr 90px', gap: 8, alignItems: 'center', padding: '4px 8px', borderRadius: 8, background: inabitavel ? 'rgba(255,77,109,0.07)' : 'var(--surface2)', opacity: inabitavel ? 0.7 : 1 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: inabitavel ? 'var(--red)' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{key}</span>
-                <input
-                  placeholder="Ex: João Silva"
-                  value={contatosForm[key]?.nome || ''}
-                  onChange={e => updateContato(key, 'nome', e.target.value)}
-                  disabled={inabitavel}
-                  style={{ fontSize: 12, padding: '5px 8px', opacity: inabitavel ? 0.4 : 1 }}
-                />
-                <input
-                  placeholder="Ex: 11999999999"
-                  value={contatosForm[key]?.tel1 || ''}
-                  onChange={e => updateContato(key, 'tel1', e.target.value)}
-                  disabled={inabitavel}
-                  style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }}
-                />
-                <input
-                  placeholder="Opcional"
-                  value={contatosForm[key]?.tel2 || ''}
-                  onChange={e => updateContato(key, 'tel2', e.target.value)}
-                  disabled={inabitavel}
-                  style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <input
-                    type="checkbox"
-                    checked={inabitavel}
-                    onChange={e => updateContato(key, 'inabitavel', e.target.checked)}
-                    style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--red)' }}
-                  />
-                </div>
-              </div>
-            );
-          })}
         </div>
         <div style={{ marginTop: 12 }}>
           <Btn variant="primary" onClick={handleSaveContatos}>Salvar Contatos</Btn>
