@@ -227,38 +227,44 @@ const SaldoInput = ({ value, onChange }) => {
   );
 };
 
-// ─── INADIMPLENTES ACUMULADOS (todos os meses anteriores) ───────────────────
+// ─── INADIMPLENTES ACUMULADOS — grid estilo mapa de pagamentos ───────────────
 const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
   const contatos = store.data?.config?.contatos || {};
   const taxa = store.data?.config?.taxa_condominio || 50;
   const mesAtualData = store.getMes(anoAtual, mesAtual);
 
-  // Monta set de pagamentos tardios já registrados neste mês: "apto_mesRef_anoRef"
+  // Set "apto_mesRef_anoRef" de tardios já registrados neste mês
   const tardiosAqui = new Set(
     (mesAtualData?.receitas || [])
       .filter(r => r._tardio)
       .map(r => `${r._apto}_${r._mes_ref}_${r._ano_ref}`)
   );
 
-  // Varre todos os meses anteriores ao atual em ordem cronológica
-  const grupos = [];
+  const todosAptos = getAllAptos().filter(k => !contatos[k]?.inabitavel);
+
+  // Colunas: meses anteriores que têm pelo menos 1 apt pendente
+  const colunas = [];
   for (const [anoStr, anoData] of Object.entries(store.data?.anos || {}).sort()) {
     const anoNum = parseInt(anoStr);
     for (const [mesStr, mesData] of Object.entries(anoData.meses || {}).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))) {
       const mesNum = parseInt(mesStr);
       if (anoNum > anoAtual || (anoNum === anoAtual && mesNum >= mesAtual)) continue;
       const { pagamentos_aptos = {}, pagamentos_tardios = {} } = mesData;
-      const pendentes = getAllAptos().filter(key =>
-        !contatos[key]?.inabitavel && !pagamentos_aptos[key]
-      );
-      if (pendentes.length) grupos.push({ anoRef: anoNum, mesRef: mesNum, pendentes, pagamentos_tardios });
+      if (todosAptos.some(k => !pagamentos_aptos[k]))
+        colunas.push({ anoRef: anoNum, mesRef: mesNum, pagamentos_aptos, pagamentos_tardios });
     }
   }
 
-  if (!grupos.length) return null;
+  if (!colunas.length) return null;
 
-  const totalPendentes = grupos.reduce((s, g) =>
-    s + g.pendentes.filter(k => !g.pagamentos_tardios[k] && !tardiosAqui.has(`${k}_${g.mesRef}_${g.anoRef}`)).length, 0
+  // Linhas: apenas aptos com pelo menos 1 mês pendente
+  const linhas = todosAptos.filter(k => colunas.some(c => !c.pagamentos_aptos[k]));
+  if (!linhas.length) return null;
+
+  const totalPendentes = colunas.reduce((s, { anoRef, mesRef, pagamentos_aptos, pagamentos_tardios }) =>
+    s + todosAptos.filter(k =>
+      !pagamentos_aptos[k] && !pagamentos_tardios[k] && !tardiosAqui.has(`${k}_${mesRef}_${anoRef}`)
+    ).length, 0
   );
 
   return (
@@ -272,90 +278,97 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
           </span>
         )}
       </SectionHeader>
-      <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>
-        Clique para registrar pagamentos de meses anteriores. A receita entra neste mês; o mês de referência não é alterado financeiramente.
+      <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 12 }}>
+        Clique na célula para registrar/desfazer pagamento de mês anterior. A receita entra neste mês.
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {grupos.map(({ anoRef, mesRef, pendentes, pagamentos_tardios }) => {
-          const nomeMes = MESES_FULL[mesRef - 1];
-          const pendentesNaoResolvidos = pendentes.filter(k =>
-            !pagamentos_tardios[k] && !tardiosAqui.has(`${k}_${mesRef}_${anoRef}`)
-          );
-          const resolvidos = pendentes.filter(k =>
-            pagamentos_tardios[k] || tardiosAqui.has(`${k}_${mesRef}_${anoRef}`)
-          );
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 11, minWidth: 'max-content' }}>
+          <thead>
+            <tr>
+              <th style={{ padding: '4px 12px 4px 4px', textAlign: 'left', color: 'var(--muted)', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
+                Apartamento
+              </th>
+              {colunas.map(({ anoRef, mesRef }) => (
+                <th key={`${anoRef}-${mesRef}`} style={{ padding: '4px 4px', textAlign: 'center', color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap', minWidth: 40 }}>
+                  <div style={{ fontSize: 9 }}>{MESES[mesRef - 1]}</div>
+                  <div style={{ fontSize: 9, opacity: 0.6 }}>{String(anoRef).slice(2)}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map(key => {
+              const contato = contatos[key] || {};
+              return (
+                <tr key={key}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <td style={{ padding: '3px 12px 3px 4px', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, position: 'sticky', left: 0, background: 'inherit', zIndex: 1, borderRight: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                    {key}
+                    {contato.nome && <span style={{ marginLeft: 6, fontFamily: 'var(--font-ui)', fontWeight: 400, fontSize: 10, color: 'var(--muted)' }}>{contato.nome}</span>}
+                  </td>
+                  {colunas.map(({ anoRef, mesRef, pagamentos_aptos, pagamentos_tardios }) => {
+                    if (pagamentos_aptos[key]) {
+                      // Pagou no prazo neste mês — célula vazia
+                      return <td key={`${anoRef}-${mesRef}`} style={{ padding: '3px 4px' }}><div style={{ width: 16, height: 16, margin: '0 auto' }} /></td>;
+                    }
+                    const tardioOutro = pagamentos_tardios[key];
+                    const pagoAqui = tardiosAqui.has(`${key}_${mesRef}_${anoRef}`);
 
-          return (
-            <div key={`${anoRef}-${mesRef}`}>
-              {/* Cabeçalho do grupo */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#a5b4fc', fontFamily: 'var(--font-mono)' }}>
-                  {nomeMes}/{anoRef}
-                </span>
-                {pendentesNaoResolvidos.length > 0 && (
-                  <span style={{ fontSize: 10, color: 'var(--red)', background: 'rgba(239,68,68,0.1)', padding: '1px 6px', borderRadius: 10 }}>
-                    {pendentesNaoResolvidos.length} pendente{pendentesNaoResolvidos.length > 1 ? 's' : ''}
-                  </span>
-                )}
-                {resolvidos.length > 0 && (
-                  <span style={{ fontSize: 10, color: '#818cf8', background: 'rgba(99,102,241,0.1)', padding: '1px 6px', borderRadius: 10 }}>
-                    {resolvidos.length} resolvido{resolvidos.length > 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
+                    if (tardioOutro && !pagoAqui) {
+                      // Pago em outro mês — cinza com ✓
+                      return (
+                        <td key={`${anoRef}-${mesRef}`} style={{ padding: '3px 4px', textAlign: 'center' }}>
+                          <div title={`Pago em ${MESES[tardioOutro.mes_pago - 1]}/${tardioOutro.ano_pago}`}
+                            style={{ width: 16, height: 16, borderRadius: 4, background: 'rgba(99,102,241,0.22)', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#818cf8', fontWeight: 800 }}>
+                            ✓
+                          </div>
+                        </td>
+                      );
+                    }
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {pendentes.map(key => {
-                  const tardioOutro = pagamentos_tardios[key];
-                  const pagoNesteMes = tardiosAqui.has(`${key}_${mesRef}_${anoRef}`);
-                  const contato = contatos[key] || {};
-
-                  if (tardioOutro && !pagoNesteMes) {
-                    const tag = `${MESES[tardioOutro.mes_pago - 1]}/${tardioOutro.ano_pago}`;
+                    // Pendente ou registrado neste mês — clicável
                     return (
-                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', background: 'rgba(99,102,241,0.07)', borderRadius: 7, opacity: 0.65 }}>
-                        <CheckCircle2 size={13} color="#818cf8" />
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, color: '#a5b4fc' }}>{key}</span>
-                        {contato.nome && <span style={{ fontSize: 11, color: 'var(--muted)' }}>{contato.nome}</span>}
-                        <span style={{ marginLeft: 'auto', fontSize: 10, color: '#818cf8' }}>Pago em {tag}</span>
-                      </div>
+                      <td key={`${anoRef}-${mesRef}`} style={{ padding: '3px 4px', textAlign: 'center' }}>
+                        <div
+                          title={pagoAqui
+                            ? `Clique para desfazer — ${MESES_FULL[mesRef - 1]}/${anoRef}`
+                            : `Registrar pagamento — ${MESES_FULL[mesRef - 1]}/${anoRef} · R$ ${taxa.toFixed(2)}`}
+                          onClick={() => pagoAqui
+                            ? store.desfazerPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
+                            : store.registrarPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
+                          }
+                          style={{
+                            width: 16, height: 16, borderRadius: 4,
+                            background: pagoAqui ? '#6366f1' : 'rgba(239,68,68,0.65)',
+                            margin: '0 auto', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 9, color: '#fff', fontWeight: 800,
+                          }}>
+                          {pagoAqui && '✓'}
+                        </div>
+                      </td>
                     );
-                  }
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-                  return (
-                    <div key={key}
-                      onClick={() => pagoNesteMes
-                        ? store.desfazerPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
-                        : store.registrarPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
-                      }
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px',
-                        background: pagoNesteMes ? 'rgba(99,102,241,0.12)' : 'var(--surface2)',
-                        borderRadius: 7, cursor: 'pointer',
-                        border: `1px solid ${pagoNesteMes ? 'rgba(99,102,241,0.4)' : 'transparent'}`,
-                        transition: 'all 0.12s',
-                      }}>
-                      <div style={{
-                        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                        border: pagoNesteMes ? 'none' : '2px solid var(--border2)',
-                        background: pagoNesteMes ? '#6366f1' : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        {pagoNesteMes && <span style={{ color: '#fff', fontSize: 10, fontWeight: 800, lineHeight: 1 }}>✓</span>}
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, color: pagoNesteMes ? '#a5b4fc' : 'var(--text)' }}>{key}</span>
-                      {contato.nome && <span style={{ fontSize: 11, color: 'var(--muted)' }}>{contato.nome}</span>}
-                      <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, color: pagoNesteMes ? '#818cf8' : 'var(--red)' }}>
-                        {pagoNesteMes ? '✓ Registrado' : `R$ ${taxa.toFixed(2)}`}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+      <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
+        {[
+          { bg: 'rgba(239,68,68,0.65)', label: 'Pendente — clique para registrar' },
+          { bg: '#6366f1', label: 'Registrado neste mês — clique para desfazer' },
+          { bg: 'rgba(99,102,241,0.22)', label: 'Pago em outro mês' },
+        ].map(({ bg, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: bg, flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: 'var(--muted)' }}>{label}</span>
+          </div>
+        ))}
       </div>
     </Card>
   );

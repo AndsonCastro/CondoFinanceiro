@@ -156,9 +156,9 @@ export default function InadimplenciaView({ data }) {
                   Apartamento
                 </th>
                 {mesesOrdenados.map(({ ano, mes }) => (
-                  <th key={`${ano}-${mes}`} style={{ padding: '4px 1px', textAlign: 'center', color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap', minWidth: 24 }}>
-                    <div style={{ fontSize: 8 }}>{MESES[mes - 1]}</div>
-                    <div style={{ fontSize: 8, opacity: 0.6 }}>{String(ano).slice(2)}</div>
+                  <th key={`${ano}-${mes}`} style={{ padding: '6px 4px', textAlign: 'center', color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap', minWidth: 44 }}>
+                    <div style={{ fontSize: 9 }}>{MESES[mes - 1]}</div>
+                    <div style={{ fontSize: 9, opacity: 0.6 }}>{String(ano).slice(2)}</div>
                   </th>
                 ))}
                 <th style={{ padding: '6px 8px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>≤10</th>
@@ -173,15 +173,15 @@ export default function InadimplenciaView({ data }) {
                 return (
                   <tr key={key} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{ padding: '2px 10px 2px 4px', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, position: 'sticky', left: 0, background: 'inherit', zIndex: 1, borderRight: '1px solid var(--border)' }}>
+                    <td style={{ padding: '4px 12px', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12, position: 'sticky', left: 0, background: 'inherit', zIndex: 1, borderRight: '1px solid var(--border)' }}>
                       {key}
                     </td>
                     {mesesOrdenados.map(({ ano, mes }) => {
                       const s = getStatus(ano, mes, key);
                       return (
-                        <td key={`${ano}-${mes}`} style={{ padding: '2px 1px', textAlign: 'center' }}>
+                        <td key={`${ano}-${mes}`} style={{ padding: '4px', textAlign: 'center' }}>
                           <div title={`${key} — ${MESES[mes - 1]}/${ano}: ${STATUS_LABEL[s]}`}
-                            style={{ width: 10, height: 10, borderRadius: 2, background: STATUS_COLOR[s], margin: '0 auto', cursor: 'default' }} />
+                            style={{ width: 16, height: 16, borderRadius: 4, background: STATUS_COLOR[s], margin: '0 auto', cursor: 'default' }} />
                         </td>
                       );
                     })}
