@@ -227,80 +227,132 @@ const SaldoInput = ({ value, onChange }) => {
   );
 };
 
-// ─── INADIMPLENTES DO MÊS ANTERIOR ──────────────────────────────────────────
-const InadimplentesAnterior = ({ prevMesData, anoAtual, mesAtual, store }) => {
-  if (!prevMesData) return null;
-  const { mes: mesRef, ano: anoRef, pagamentos_aptos = {}, pagamentos_tardios = {} } = prevMesData;
+// ─── INADIMPLENTES ACUMULADOS (todos os meses anteriores) ───────────────────
+const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
   const contatos = store.data?.config?.contatos || {};
   const taxa = store.data?.config?.taxa_condominio || 50;
-
-  const inadimplentes = getAllAptos().filter(key =>
-    !contatos[key]?.inabitavel && !pagamentos_aptos[key]
-  );
-  if (!inadimplentes.length) return null;
-
   const mesAtualData = store.getMes(anoAtual, mesAtual);
-  const pagoAqui = new Set(
+
+  // Monta set de pagamentos tardios já registrados neste mês: "apto_mesRef_anoRef"
+  const tardiosAqui = new Set(
     (mesAtualData?.receitas || [])
-      .filter(r => r._tardio && r._mes_ref === mesRef && r._ano_ref === anoRef)
-      .map(r => r._apto)
+      .filter(r => r._tardio)
+      .map(r => `${r._apto}_${r._mes_ref}_${r._ano_ref}`)
   );
 
-  const nomeMesRef = MESES_FULL[mesRef - 1];
+  // Varre todos os meses anteriores ao atual em ordem cronológica
+  const grupos = [];
+  for (const [anoStr, anoData] of Object.entries(store.data?.anos || {}).sort()) {
+    const anoNum = parseInt(anoStr);
+    for (const [mesStr, mesData] of Object.entries(anoData.meses || {}).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))) {
+      const mesNum = parseInt(mesStr);
+      if (anoNum > anoAtual || (anoNum === anoAtual && mesNum >= mesAtual)) continue;
+      const { pagamentos_aptos = {}, pagamentos_tardios = {} } = mesData;
+      const pendentes = getAllAptos().filter(key =>
+        !contatos[key]?.inabitavel && !pagamentos_aptos[key]
+      );
+      if (pendentes.length) grupos.push({ anoRef: anoNum, mesRef: mesNum, pendentes, pagamentos_tardios });
+    }
+  }
+
+  if (!grupos.length) return null;
+
+  const totalPendentes = grupos.reduce((s, g) =>
+    s + g.pendentes.filter(k => !g.pagamentos_tardios[k] && !tardiosAqui.has(`${k}_${g.mesRef}_${g.anoRef}`)).length, 0
+  );
 
   return (
     <Card style={{ marginTop: 16, border: '1px solid rgba(99,102,241,0.3)' }}>
       <SectionHeader>
         <Clock size={13} style={{ display: 'inline', marginRight: 6, color: '#818cf8' }} />
-        <span style={{ color: '#a5b4fc' }}>Inadimplentes — {nomeMesRef}/{anoRef}</span>
+        <span style={{ color: '#a5b4fc' }}>Inadimplências Anteriores</span>
+        {totalPendentes > 0 && (
+          <span style={{ marginLeft: 8, fontSize: 10, background: 'rgba(239,68,68,0.15)', color: 'var(--red)', padding: '1px 7px', borderRadius: 20, fontWeight: 800 }}>
+            {totalPendentes} pendente{totalPendentes > 1 ? 's' : ''}
+          </span>
+        )}
       </SectionHeader>
-      <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 12 }}>
-        Clique para registrar o pagamento de {nomeMesRef}/{anoRef} neste mês. A receita entra aqui; {nomeMesRef} não é alterado financeiramente.
+      <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>
+        Clique para registrar pagamentos de meses anteriores. A receita entra neste mês; o mês de referência não é alterado financeiramente.
       </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {inadimplentes.map(key => {
-          const tardioOutro = pagamentos_tardios[key];
-          const pagoNesteMes = pagoAqui.has(key);
-          const contato = contatos[key] || {};
 
-          if (tardioOutro && !pagoNesteMes) {
-            const tag = `${MESES[tardioOutro.mes_pago - 1]}/${tardioOutro.ano_pago}`;
-            return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', background: 'rgba(99,102,241,0.07)', borderRadius: 8, opacity: 0.7 }}>
-                <CheckCircle2 size={15} color="#818cf8" />
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12, color: '#a5b4fc' }}>{key}</span>
-                {contato.nome && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{contato.nome}</span>}
-                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#818cf8' }}>Pago em {tag}</span>
-              </div>
-            );
-          }
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {grupos.map(({ anoRef, mesRef, pendentes, pagamentos_tardios }) => {
+          const nomeMes = MESES_FULL[mesRef - 1];
+          const pendentesNaoResolvidos = pendentes.filter(k =>
+            !pagamentos_tardios[k] && !tardiosAqui.has(`${k}_${mesRef}_${anoRef}`)
+          );
+          const resolvidos = pendentes.filter(k =>
+            pagamentos_tardios[k] || tardiosAqui.has(`${k}_${mesRef}_${anoRef}`)
+          );
 
           return (
-            <div key={key}
-              onClick={() => pagoNesteMes
-                ? store.desfazerPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
-                : store.registrarPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
-              }
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px',
-                background: pagoNesteMes ? 'rgba(99,102,241,0.12)' : 'var(--surface2)',
-                borderRadius: 8, cursor: 'pointer',
-                border: `1px solid ${pagoNesteMes ? 'rgba(99,102,241,0.4)' : 'transparent'}`,
-                transition: 'all 0.15s',
-              }}>
-              <div style={{
-                width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-                border: pagoNesteMes ? 'none' : '2px solid var(--border2)',
-                background: pagoNesteMes ? '#6366f1' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {pagoNesteMes && <span style={{ color: '#fff', fontSize: 11, fontWeight: 800 }}>✓</span>}
+            <div key={`${anoRef}-${mesRef}`}>
+              {/* Cabeçalho do grupo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#a5b4fc', fontFamily: 'var(--font-mono)' }}>
+                  {nomeMes}/{anoRef}
+                </span>
+                {pendentesNaoResolvidos.length > 0 && (
+                  <span style={{ fontSize: 10, color: 'var(--red)', background: 'rgba(239,68,68,0.1)', padding: '1px 6px', borderRadius: 10 }}>
+                    {pendentesNaoResolvidos.length} pendente{pendentesNaoResolvidos.length > 1 ? 's' : ''}
+                  </span>
+                )}
+                {resolvidos.length > 0 && (
+                  <span style={{ fontSize: 10, color: '#818cf8', background: 'rgba(99,102,241,0.1)', padding: '1px 6px', borderRadius: 10 }}>
+                    {resolvidos.length} resolvido{resolvidos.length > 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12, color: pagoNesteMes ? '#a5b4fc' : 'var(--text)' }}>{key}</span>
-              {contato.nome && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{contato.nome}</span>}
-              <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: pagoNesteMes ? '#818cf8' : 'var(--red)' }}>
-                {pagoNesteMes ? '✓ Registrado' : `R$ ${taxa.toFixed(2)}`}
-              </span>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {pendentes.map(key => {
+                  const tardioOutro = pagamentos_tardios[key];
+                  const pagoNesteMes = tardiosAqui.has(`${key}_${mesRef}_${anoRef}`);
+                  const contato = contatos[key] || {};
+
+                  if (tardioOutro && !pagoNesteMes) {
+                    const tag = `${MESES[tardioOutro.mes_pago - 1]}/${tardioOutro.ano_pago}`;
+                    return (
+                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', background: 'rgba(99,102,241,0.07)', borderRadius: 7, opacity: 0.65 }}>
+                        <CheckCircle2 size={13} color="#818cf8" />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, color: '#a5b4fc' }}>{key}</span>
+                        {contato.nome && <span style={{ fontSize: 11, color: 'var(--muted)' }}>{contato.nome}</span>}
+                        <span style={{ marginLeft: 'auto', fontSize: 10, color: '#818cf8' }}>Pago em {tag}</span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={key}
+                      onClick={() => pagoNesteMes
+                        ? store.desfazerPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
+                        : store.registrarPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
+                      }
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px',
+                        background: pagoNesteMes ? 'rgba(99,102,241,0.12)' : 'var(--surface2)',
+                        borderRadius: 7, cursor: 'pointer',
+                        border: `1px solid ${pagoNesteMes ? 'rgba(99,102,241,0.4)' : 'transparent'}`,
+                        transition: 'all 0.12s',
+                      }}>
+                      <div style={{
+                        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                        border: pagoNesteMes ? 'none' : '2px solid var(--border2)',
+                        background: pagoNesteMes ? '#6366f1' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {pagoNesteMes && <span style={{ color: '#fff', fontSize: 10, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                      </div>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, color: pagoNesteMes ? '#a5b4fc' : 'var(--text)' }}>{key}</span>
+                      {contato.nome && <span style={{ fontSize: 11, color: 'var(--muted)' }}>{contato.nome}</span>}
+                      <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, color: pagoNesteMes ? '#818cf8' : 'var(--red)' }}>
+                        {pagoNesteMes ? '✓ Registrado' : `R$ ${taxa.toFixed(2)}`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           );
         })}
@@ -323,9 +375,6 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
   };
 
   const pagamentosAptos = mesData.pagamentos_aptos || {};
-  const prevMes = mes === 1 ? 12 : mes - 1;
-  const prevAno = mes === 1 ? ano - 1 : ano;
-  const prevMesData = store.getMes(prevAno, prevMes);
 
   return (
     <div className="fade-in">
@@ -453,14 +502,6 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
       {/* RESUMO DE PONTUALIDADE */}
       <PontualidadeResumo pont={mesData.pontualidade} />
 
-      {/* INADIMPLENTES DO MÊS ANTERIOR */}
-      <InadimplentesAnterior
-        prevMesData={prevMesData}
-        anoAtual={ano}
-        mesAtual={mes}
-        store={store}
-      />
-
       {/* CHECKLIST DE APARTAMENTOS */}
       <ApartamentosChecklist
         pagamentos={pagamentosAptos}
@@ -492,6 +533,13 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
           style={{ width: '100%', resize: 'vertical', fontFamily: 'var(--font-ui)', fontSize: 13, lineHeight: 1.6 }}
         />
       </Card>
+
+      {/* INADIMPLÊNCIAS DE MESES ANTERIORES */}
+      <InadimplentesAcumulados
+        anoAtual={ano}
+        mesAtual={mes}
+        store={store}
+      />
     </div>
   );
 }
