@@ -52,11 +52,21 @@ export const gerarRelatorioPDF = (mesData, config) => {
   doc.text('Receitas', 14, y1);
   doc.setTextColor(0, 0, 0);
 
+  const tardios = mesData.receitas.filter(r => r._tardio);
+  const receitasAgrupadas = [
+    ...mesData.receitas.filter(r => !r._tardio),
+    ...(tardios.length > 0 ? [{
+      descricao: `Atrasados (${tardios.length} pagamento${tardios.length > 1 ? 's' : ''})`,
+      categoria: 'Taxa de Condomínio',
+      valor: tardios.reduce((s, r) => s + r.valor, 0),
+    }] : []),
+  ];
+
   autoTable(doc, {
     startY: y1 + 4,
     head: [['Descrição', 'Categoria', 'Valor']],
-    body: mesData.receitas.length
-      ? mesData.receitas.map(r => [r.descricao, r.categoria, fmt(r.valor)])
+    body: receitasAgrupadas.length
+      ? receitasAgrupadas.map(r => [r.descricao, r.categoria, fmt(r.valor)])
       : [['Nenhuma receita registrada', '', '']],
     foot: [['Total', '', fmt(totais.totalReceitas)]],
     theme: 'striped',
