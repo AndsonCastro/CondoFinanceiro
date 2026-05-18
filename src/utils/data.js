@@ -53,6 +53,10 @@ export const createMes = ({ mes, ano, saldo_inicial = 0 }) => ({
   pendencias: [],
   // { id, descricao, tipo: 'a_receber'|'a_pagar', valor, resolvida: bool }
 
+  // Pagamentos tardios de meses anteriores recebidos neste mês
+  // { 'B1-101': { mes_pago: 6, ano_pago: 2026 } }  — gravado no mês de REFERÊNCIA
+  pagamentos_tardios: {},
+
   notas: '',
 });
 

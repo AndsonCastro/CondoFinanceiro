@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Plus, CheckCircle2, Trash2, FileText, FileDown } from 'lucide-react';
-import { MESES_FULL, CATEGORIAS_RECEITA, CATEGORIAS_DESPESA, calcTotais, fmt, exportCSV, PONTUALIDADE_TOTAL_UNIDADES } from '../utils/data';
+import { Plus, CheckCircle2, Trash2, FileText, FileDown, Clock } from 'lucide-react';
+import { MESES, MESES_FULL, CATEGORIAS_RECEITA, CATEGORIAS_DESPESA, calcTotais, fmt, exportCSV, PONTUALIDADE_TOTAL_UNIDADES } from '../utils/data';
+import { getAllAptos } from './ApartamentosChecklist';
 import { gerarRelatorioPDF } from '../utils/pdf';
 import { Card, Btn, KPI, Modal, SectionHeader, EditableRow, Badge, ProgressBar, useConfirm } from './UI';
 import ApartamentosChecklist from './ApartamentosChecklist';
@@ -51,22 +52,23 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg 
         </tr>
       </thead>
       <tbody>
-        {items.map(item => item._auto ? (
-          // Linha gerada automaticamente pelo checklist — somente leitura
-          <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', background: 'var(--green-dim)' }}>
+        {items.map(item => (item._auto || item._tardio) ? (
+          <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', background: item._tardio ? 'rgba(99,102,241,0.07)' : 'var(--green-dim)' }}>
             <td style={{ padding: '9px 8px', fontSize: 13 }}>
-              <span style={{ marginRight: 6 }}>🔗</span>
+              {item._tardio ? <Clock size={12} style={{ marginRight: 6, verticalAlign: 'middle', color: '#818cf8' }} /> : <span style={{ marginRight: 6 }}>🔗</span>}
               {item.descricao}
-              <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--green)', background: 'transparent', fontWeight: 700, letterSpacing: 0.5 }}>AUTO</span>
+              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: item._tardio ? '#818cf8' : 'var(--green)' }}>
+                {item._tardio ? 'TARDIO' : 'AUTO'}
+              </span>
             </td>
             <td style={{ padding: '9px 8px' }}>
               <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--surface2)', padding: '2px 8px', borderRadius: 4 }}>{item.categoria}</span>
             </td>
-            <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: colorAccent, fontWeight: 700 }}>
+            <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: item._tardio ? '#a5b4fc' : colorAccent, fontWeight: 700 }}>
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}
             </td>
             <td style={{ padding: '9px 8px', textAlign: 'right' }}>
-              <span style={{ fontSize: 10, color: 'var(--muted)' }}>via checklist</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)' }}>{item._tardio ? 'via inadimp.' : 'via checklist'}</span>
             </td>
           </tr>
         ) : (
@@ -225,6 +227,88 @@ const SaldoInput = ({ value, onChange }) => {
   );
 };
 
+// ─── INADIMPLENTES DO MÊS ANTERIOR ──────────────────────────────────────────
+const InadimplentesAnterior = ({ prevMesData, anoAtual, mesAtual, store }) => {
+  if (!prevMesData) return null;
+  const { mes: mesRef, ano: anoRef, pagamentos_aptos = {}, pagamentos_tardios = {} } = prevMesData;
+  const contatos = store.data?.config?.contatos || {};
+  const taxa = store.data?.config?.taxa_condominio || 50;
+
+  const inadimplentes = getAllAptos().filter(key =>
+    !contatos[key]?.inabitavel && !pagamentos_aptos[key]
+  );
+  if (!inadimplentes.length) return null;
+
+  const mesAtualData = store.getMes(anoAtual, mesAtual);
+  const pagoAqui = new Set(
+    (mesAtualData?.receitas || [])
+      .filter(r => r._tardio && r._mes_ref === mesRef && r._ano_ref === anoRef)
+      .map(r => r._apto)
+  );
+
+  const nomeMesRef = MESES_FULL[mesRef - 1];
+
+  return (
+    <Card style={{ marginTop: 16, border: '1px solid rgba(99,102,241,0.3)' }}>
+      <SectionHeader>
+        <Clock size={13} style={{ display: 'inline', marginRight: 6, color: '#818cf8' }} />
+        <span style={{ color: '#a5b4fc' }}>Inadimplentes — {nomeMesRef}/{anoRef}</span>
+      </SectionHeader>
+      <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 12 }}>
+        Clique para registrar o pagamento de {nomeMesRef}/{anoRef} neste mês. A receita entra aqui; {nomeMesRef} não é alterado financeiramente.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {inadimplentes.map(key => {
+          const tardioOutro = pagamentos_tardios[key];
+          const pagoNesteMes = pagoAqui.has(key);
+          const contato = contatos[key] || {};
+
+          if (tardioOutro && !pagoNesteMes) {
+            const tag = `${MESES[tardioOutro.mes_pago - 1]}/${tardioOutro.ano_pago}`;
+            return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', background: 'rgba(99,102,241,0.07)', borderRadius: 8, opacity: 0.7 }}>
+                <CheckCircle2 size={15} color="#818cf8" />
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12, color: '#a5b4fc' }}>{key}</span>
+                {contato.nome && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{contato.nome}</span>}
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#818cf8' }}>Pago em {tag}</span>
+              </div>
+            );
+          }
+
+          return (
+            <div key={key}
+              onClick={() => pagoNesteMes
+                ? store.desfazerPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
+                : store.registrarPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
+              }
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px',
+                background: pagoNesteMes ? 'rgba(99,102,241,0.12)' : 'var(--surface2)',
+                borderRadius: 8, cursor: 'pointer',
+                border: `1px solid ${pagoNesteMes ? 'rgba(99,102,241,0.4)' : 'transparent'}`,
+                transition: 'all 0.15s',
+              }}>
+              <div style={{
+                width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+                border: pagoNesteMes ? 'none' : '2px solid var(--border2)',
+                background: pagoNesteMes ? '#6366f1' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {pagoNesteMes && <span style={{ color: '#fff', fontSize: 11, fontWeight: 800 }}>✓</span>}
+              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12, color: pagoNesteMes ? '#a5b4fc' : 'var(--text)' }}>{key}</span>
+              {contato.nome && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{contato.nome}</span>}
+              <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: pagoNesteMes ? '#818cf8' : 'var(--red)' }}>
+                {pagoNesteMes ? '✓ Registrado' : `R$ ${taxa.toFixed(2)}`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+};
+
 // ─── MAIN MES VIEW ───────────────────────────────────────────────────────────
 export default function MesView({ mesData, ano, mes, store, onDeleted }) {
   const { confirm, Dialog } = useConfirm();
@@ -239,6 +323,9 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
   };
 
   const pagamentosAptos = mesData.pagamentos_aptos || {};
+  const prevMes = mes === 1 ? 12 : mes - 1;
+  const prevAno = mes === 1 ? ano - 1 : ano;
+  const prevMesData = store.getMes(prevAno, prevMes);
 
   return (
     <div className="fade-in">
@@ -366,9 +453,18 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
       {/* RESUMO DE PONTUALIDADE */}
       <PontualidadeResumo pont={mesData.pontualidade} />
 
+      {/* INADIMPLENTES DO MÊS ANTERIOR */}
+      <InadimplentesAnterior
+        prevMesData={prevMesData}
+        anoAtual={ano}
+        mesAtual={mes}
+        store={store}
+      />
+
       {/* CHECKLIST DE APARTAMENTOS */}
       <ApartamentosChecklist
         pagamentos={pagamentosAptos}
+        pagamentos_tardios={mesData.pagamentos_tardios || {}}
         onChange={(novos) => store.updatePagamentosAptos(ano, mes, novos)}
         contatos={store.data?.config?.contatos || {}}
         taxa={store.data?.config?.taxa_condominio || 50}

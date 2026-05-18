@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { CheckCircle2, Circle, MessageCircle } from 'lucide-react';
-import { fmt, MESES_FULL } from '../utils/data';
+import { CheckCircle2, Circle, MessageCircle, Clock } from 'lucide-react';
+import { fmt, MESES, MESES_FULL } from '../utils/data';
 import { Card, SectionHeader, ProgressBar } from './UI';
 
 // ─── CONFIGURAÇÃO FIXA DO CONDOMÍNIO ────────────────────────────────────────
@@ -62,7 +62,7 @@ const WhatsAppBtn = ({ href }) => (
 );
 
 // ─── CARD DE UM BLOCO ────────────────────────────────────────────────────────
-const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, mes, ano, nomeCondominio }) => {
+const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, mes, ano, nomeCondominio, pagamentos_tardios }) => {
   const TAXA = taxa;
   const aptos = APTOS.map(a => ({
     key: aptoKey(bloco, a),
@@ -108,8 +108,29 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {aptos.map(({ key, label, status }) => {
-          const alertar = isDeadline && !status;
-          const waLink = (!status) ? buildWhatsAppLink(key) : null;
+          const tardio = pagamentos_tardios?.[key];
+          const alertar = isDeadline && !status && !tardio;
+          const waLink = (!status && !tardio) ? buildWhatsAppLink(key) : null;
+
+          if (tardio) {
+            const tag = `${MESES[tardio.mes_pago - 1]}/${String(tardio.ano_pago).slice(2)}`;
+            return (
+              <div key={key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: 'rgba(99,102,241,0.07)', borderRadius: 8, padding: '6px 10px',
+                border: '1px solid rgba(99,102,241,0.25)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <Clock size={15} color="#818cf8" />
+                  <span style={{ fontSize: 13, color: '#a5b4fc' }}>{label}</span>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 800, color: '#818cf8', background: 'rgba(99,102,241,0.15)', padding: '2px 8px', borderRadius: 20, letterSpacing: 0.5 }}>
+                  PAGO MÊS {tag}
+                </span>
+              </div>
+            );
+          }
+
           return (
             <div key={key}
               className={alertar ? 'pulse-red' : ''}
@@ -120,7 +141,6 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
                 border: `1px solid ${
                   status === 'ate10' ? 'var(--green)33'
                   : status === 'apos10' ? 'var(--yellow)33'
-                  : alertar ? 'transparent'  // controlled by pulse-red keyframe
                   : 'transparent'
                 }`,
                 transition: 'background 0.15s',
@@ -140,31 +160,15 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
                   {label}
                 </span>
                 {status && (
-                  <span style={{
-                    fontSize: 11, fontFamily: 'var(--font-mono)',
-                    color: status === 'ate10' ? 'var(--green)' : 'var(--yellow)',
-                  }}>
+                  <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: status === 'ate10' ? 'var(--green)' : 'var(--yellow)' }}>
                     {fmt(TAXA)}
                   </span>
                 )}
               </div>
-
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                 {waLink && <WhatsAppBtn href={waLink} />}
-                <StatusBtn
-                  label="≤10"
-                  color="var(--green)"
-                  bg="var(--green-dim)"
-                  active={status === 'ate10'}
-                  onClick={() => onToggle(key, status === 'ate10' ? null : 'ate10')}
-                />
-                <StatusBtn
-                  label=">10"
-                  color="var(--yellow)"
-                  bg="var(--yellow-dim)"
-                  active={status === 'apos10'}
-                  onClick={() => onToggle(key, status === 'apos10' ? null : 'apos10')}
-                />
+                <StatusBtn label="≤10" color="var(--green)" bg="var(--green-dim)" active={status === 'ate10'} onClick={() => onToggle(key, status === 'ate10' ? null : 'ate10')} />
+                <StatusBtn label=">10" color="var(--yellow)" bg="var(--yellow-dim)" active={status === 'apos10'} onClick={() => onToggle(key, status === 'apos10' ? null : 'apos10')} />
               </div>
             </div>
           );
@@ -183,7 +187,7 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
 };
 
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────────────────────
-export default function ApartamentosChecklist({ pagamentos = {}, onChange, contatos = {}, taxa = 50, mes, ano, nomeCondominio }) {
+export default function ApartamentosChecklist({ pagamentos = {}, pagamentos_tardios = {}, onChange, contatos = {}, taxa = 50, mes, ano, nomeCondominio }) {
   const TAXA = taxa;
   const hoje = new Date();
   const isDeadline = (
@@ -197,9 +201,9 @@ export default function ApartamentosChecklist({ pagamentos = {}, onChange, conta
       const status = pagamentos[key];
       const c = contatos?.[key] || {};
       const tel = (c.tel1 || c.tel2 || '').replace(/\D/g, '');
-      return !status && tel;
+      return !status && !pagamentos_tardios[key] && tel;
     }).length;
-  }, [pagamentos, contatos]);
+  }, [pagamentos, pagamentos_tardios, contatos]);
 
   const inabitaveis = useMemo(() =>
     new Set(Object.entries(contatos).filter(([, c]) => c.inabitavel).map(([k]) => k))
@@ -209,19 +213,20 @@ export default function ApartamentosChecklist({ pagamentos = {}, onChange, conta
     const habitaveis = getAllAptos().filter(k => !inabitaveis.has(k));
     const ate10   = habitaveis.filter(k => pagamentos[k] === 'ate10').length;
     const apos10  = habitaveis.filter(k => pagamentos[k] === 'apos10').length;
+    const tardios = habitaveis.filter(k => !pagamentos[k] && pagamentos_tardios[k]).length;
     const pagos   = ate10 + apos10;
     const total   = habitaveis.length;
-    const nao_pago = total - pagos;
+    const nao_pago = total - pagos - tardios;
     const totalArrecadado = pagos * TAXA;
-    return { ate10, apos10, pagos, total, nao_pago, totalArrecadado };
-  }, [pagamentos, inabitaveis, TAXA]);
+    return { ate10, apos10, pagos, tardios, total, nao_pago, totalArrecadado };
+  }, [pagamentos, pagamentos_tardios, inabitaveis, TAXA]);
 
   const handleToggle = (key, novoStatus) => {
     onChange({ ...pagamentos, [key]: novoStatus });
   };
 
   const handleCobrarTodos = () => {
-    const inadimplentes = getAllAptos().filter(key => !pagamentos[key] && !inabitaveis.has(key));
+    const inadimplentes = getAllAptos().filter(key => !pagamentos[key] && !pagamentos_tardios[key] && !inabitaveis.has(key));
     inadimplentes.forEach((key, i) => {
       const c = contatos?.[key] || {};
       const tel = (c.tel1 || c.tel2 || '').replace(/\D/g, '');
@@ -289,6 +294,7 @@ export default function ApartamentosChecklist({ pagamentos = {}, onChange, conta
         {[
           { label: 'Pagos até dia 10', value: stats.ate10, color: 'var(--green)' },
           { label: 'Pagos após dia 10', value: stats.apos10, color: 'var(--yellow)' },
+          ...(stats.tardios > 0 ? [{ label: 'Pago em outro mês', value: stats.tardios, color: '#818cf8' }] : []),
           { label: 'Não pagos', value: stats.nao_pago, color: stats.nao_pago > 0 ? 'var(--red)' : 'var(--muted)' },
           { label: 'Total Arrecadado', value: fmt(stats.totalArrecadado), color: 'var(--green)', mono: true },
         ].map(({ label, value, color, mono }) => (
@@ -309,6 +315,7 @@ export default function ApartamentosChecklist({ pagamentos = {}, onChange, conta
             <BlocoCard
               bloco={bloco}
               pagamentos={pagamentos}
+              pagamentos_tardios={pagamentos_tardios}
               onToggle={handleToggle}
               isDeadline={isDeadline}
               contatos={contatos}

@@ -250,6 +250,45 @@ export default function useStore() {
     });
   }, [update]);
 
+  // ─── PAGAMENTOS TARDIOS ──────────────────────────────────────────────────────
+  const registrarPagamentoTardio = useCallback((anoAtual, mesAtual, apto, anoRef, mesRef) => {
+    update(d => {
+      if (!d.anos[anoAtual]?.meses?.[mesAtual]) return d;
+      if (!d.anos[anoRef]?.meses?.[mesRef]) return d;
+      const taxa = d.config?.taxa_condominio || 50;
+      const [, bloco, apNum] = apto.match(/^B(\d+)-(\d+)$/) || ['', apto, apto];
+      const pad = n => String(n).padStart(2, '0');
+      d.anos[anoAtual].meses[mesAtual].receitas.push({
+        id: uid(),
+        descricao: `Pg Bl ${bloco} Ap ${apNum} Mês ${pad(mesRef)}/${anoRef}`,
+        categoria: 'Taxa de Condomínio',
+        valor: taxa,
+        _tardio: true,
+        _apto: apto,
+        _mes_ref: mesRef,
+        _ano_ref: anoRef,
+      });
+      if (!d.anos[anoRef].meses[mesRef].pagamentos_tardios)
+        d.anos[anoRef].meses[mesRef].pagamentos_tardios = {};
+      d.anos[anoRef].meses[mesRef].pagamentos_tardios[apto] = { mes_pago: mesAtual, ano_pago: anoAtual };
+      return d;
+    });
+  }, [update]);
+
+  const desfazerPagamentoTardio = useCallback((anoAtual, mesAtual, apto, anoRef, mesRef) => {
+    update(d => {
+      if (d.anos[anoAtual]?.meses?.[mesAtual]) {
+        d.anos[anoAtual].meses[mesAtual].receitas =
+          d.anos[anoAtual].meses[mesAtual].receitas.filter(
+            r => !(r._tardio && r._apto === apto && r._mes_ref === mesRef && r._ano_ref === anoRef)
+          );
+      }
+      if (d.anos[anoRef]?.meses?.[mesRef]?.pagamentos_tardios)
+        delete d.anos[anoRef].meses[mesRef].pagamentos_tardios[apto];
+      return d;
+    });
+  }, [update]);
+
   // ─── NOTAS ──────────────────────────────────────────────────────────────────
   const updateNotas = useCallback((ano, mes, notas) => {
     update(d => { d.anos[ano].meses[mes].notas = notas; return d; });
@@ -272,6 +311,7 @@ export default function useStore() {
     addDespesa, updateDespesa, deleteDespesa,
     addPendencia, togglePendencia, deletePendencia,
     updatePontualidade, updatePagamentosAptos, updateNotas,
+    registrarPagamentoTardio, desfazerPagamentoTardio,
     importData, resetToSeed,
   };
 }
