@@ -44,7 +44,27 @@ export default function useStore() {
 
   // ─── CONFIG ─────────────────────────────────────────────────────────────────
   const updateConfig = useCallback((patch) => {
-    update(d => { d.config = { ...d.config, ...patch }; return d; });
+    update(d => {
+      const oldTaxa = d.config?.taxa_condominio;
+      d.config = { ...d.config, ...patch };
+      const newTaxa = d.config?.taxa_condominio;
+
+      // Se a taxa mudou, recalcula auto-receita em todos os meses já existentes
+      if (patch.taxa_condominio !== undefined && newTaxa !== oldTaxa) {
+        for (const anoData of Object.values(d.anos || {})) {
+          for (const mesData of Object.values(anoData.meses || {})) {
+            const idx = mesData.receitas.findIndex(r => r.id === '__taxa_checklist__');
+            if (idx >= 0) {
+              const totalPagos = (mesData.pontualidade?.pago_ate_dia10 || 0) + (mesData.pontualidade?.pago_apos_dia10 || 0);
+              mesData.receitas[idx].valor = totalPagos * newTaxa;
+              mesData.receitas[idx].descricao = `Taxa de Condomínio (${totalPagos} aptos x R$ ${newTaxa.toFixed(2)})`;
+            }
+          }
+        }
+      }
+
+      return d;
+    });
   }, [update]);
 
   // ─── MESES ──────────────────────────────────────────────────────────────────

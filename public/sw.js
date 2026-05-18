@@ -1,4 +1,4 @@
-const CACHE = 'condofinanceiro-v5';
+const CACHE = 'condofinanceiro-v6';
 
 const PRECACHE = [
   '/manifest.json',
