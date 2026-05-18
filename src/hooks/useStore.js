@@ -183,12 +183,14 @@ export default function useStore() {
   }, [update]);
 
   // ─── PAGAMENTOS POR APARTAMENTO ─────────────────────────────────────────────
-  const TAXA_COND = data.config?.taxa_condominio || 50;
   const ID_TAXA_CHECKLIST = '__taxa_checklist__';
 
   const updatePagamentosAptos = useCallback((ano, mes, pagamentos) => {
     update(d => {
       if (!d.anos[ano]?.meses?.[mes]) return d;
+
+      // Lê taxa sempre do estado atual, não de closure memoizada
+      const TAXA_COND = d.config?.taxa_condominio || 50;
 
       // 1. Salva o mapa de pagamentos
       d.anos[ano].meses[mes].pagamentos_aptos = pagamentos;
