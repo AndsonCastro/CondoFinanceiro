@@ -42,6 +42,11 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg 
   if (!items?.length) return (
     <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--muted)', fontSize: 13 }}>{emptyMsg}</div>
   );
+
+  const tardios = items.filter(i => i._tardio);
+  const outros = items.filter(i => !i._tardio);
+  const tardioTotal = tardios.reduce((s, i) => s + i.valor, 0);
+
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
@@ -52,23 +57,21 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg 
         </tr>
       </thead>
       <tbody>
-        {items.map(item => (item._auto || item._tardio) ? (
-          <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', background: item._tardio ? 'rgba(99,102,241,0.07)' : 'var(--green-dim)' }}>
+        {outros.map(item => item._auto ? (
+          <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', background: 'var(--green-dim)' }}>
             <td style={{ padding: '9px 8px', fontSize: 13 }}>
-              {item._tardio ? <Clock size={12} style={{ marginRight: 6, verticalAlign: 'middle', color: '#818cf8' }} /> : <span style={{ marginRight: 6 }}>🔗</span>}
+              <span style={{ marginRight: 6 }}>🔗</span>
               {item.descricao}
-              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: item._tardio ? '#818cf8' : 'var(--green)' }}>
-                {item._tardio ? 'TARDIO' : 'AUTO'}
-              </span>
+              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: 'var(--green)' }}>AUTO</span>
             </td>
             <td style={{ padding: '9px 8px' }}>
               <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--surface2)', padding: '2px 8px', borderRadius: 4 }}>{item.categoria}</span>
             </td>
-            <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: item._tardio ? '#a5b4fc' : colorAccent, fontWeight: 700 }}>
+            <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: colorAccent, fontWeight: 700 }}>
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}
             </td>
             <td style={{ padding: '9px 8px', textAlign: 'right' }}>
-              <span style={{ fontSize: 10, color: 'var(--muted)' }}>{item._tardio ? 'via inadimp.' : 'via checklist'}</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)' }}>via checklist</span>
             </td>
           </tr>
         ) : (
@@ -77,6 +80,25 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg 
             onSave={patch => onSave(item.id, patch)}
             onDelete={() => onDelete(item.id)} />
         ))}
+        {tardios.length > 0 && (
+          <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(99,102,241,0.07)' }}>
+            <td style={{ padding: '9px 8px', fontSize: 13 }}>
+              <Clock size={12} style={{ marginRight: 6, verticalAlign: 'middle', color: '#818cf8' }} />
+              Atrasados
+              <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--muted)' }}>({tardios.length} pagamento{tardios.length > 1 ? 's' : ''})</span>
+              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: '#818cf8' }}>TARDIO</span>
+            </td>
+            <td style={{ padding: '9px 8px' }}>
+              <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--surface2)', padding: '2px 8px', borderRadius: 4 }}>Taxa de Condomínio</span>
+            </td>
+            <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: '#a5b4fc', fontWeight: 700 }}>
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tardioTotal)}
+            </td>
+            <td style={{ padding: '9px 8px', textAlign: 'right' }}>
+              <span style={{ fontSize: 10, color: 'var(--muted)' }}>via inadimp.</span>
+            </td>
+          </tr>
+        )}
       </tbody>
     </table>
   );
@@ -290,9 +312,9 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
                 Apartamento
               </th>
               {colunas.map(({ anoRef, mesRef }) => (
-                <th key={`${anoRef}-${mesRef}`} style={{ padding: '4px 4px', textAlign: 'center', color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap', minWidth: 40 }}>
-                  <div style={{ fontSize: 9 }}>{MESES[mesRef - 1]}</div>
-                  <div style={{ fontSize: 9, opacity: 0.6 }}>{String(anoRef).slice(2)}</div>
+                <th key={`${anoRef}-${mesRef}`} style={{ padding: '5px 4px', textAlign: 'center', fontWeight: 700, whiteSpace: 'nowrap', minWidth: 44 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text)', opacity: 0.85 }}>{MESES[mesRef - 1]}</div>
+                  <div style={{ fontSize: 9, color: '#818cf8', fontWeight: 600 }}>{String(anoRef).slice(2)}</div>
                 </th>
               ))}
             </tr>
