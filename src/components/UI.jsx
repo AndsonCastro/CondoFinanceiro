@@ -8,7 +8,7 @@ export const Btn = ({ children, onClick, variant = 'primary', size = 'md', disab
     fontFamily: 'var(--font-ui)', fontWeight: 600, borderRadius: 8,
     transition: 'all 0.15s', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.5 : 1,
-    ...{ sm: { padding: '5px 12px', fontSize: 12 }, md: { padding: '8px 16px', fontSize: 13 }, lg: { padding: '10px 22px', fontSize: 14 } }[size],
+    ...{ sm: { padding: '5px 12px', fontSize: 13 }, md: { padding: '9px 18px', fontSize: 14 }, lg: { padding: '11px 24px', fontSize: 15 } }[size],
   };
   const variants = {
     primary:  { background: 'var(--blue)', color: '#fff' },
@@ -40,7 +40,7 @@ export const KPI = ({ label, value, sub, color, icon, trend }) => (
     borderRadius: 12, padding: '16px 20px', flex: 1, minWidth: 150
   }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-      <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
+      <span style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
       {icon && <span style={{ fontSize: 18, opacity: 0.8 }}>{icon}</span>}
     </div>
     <div style={{ color: color || 'var(--text)', fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>
@@ -133,7 +133,7 @@ export const EditableRow = ({ item, onSave, onDelete, categorias, colorAccent = 
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
       <td style={{ padding: '9px 8px', fontSize: 13 }}>{item.descricao}</td>
       <td style={{ padding: '9px 8px' }}>
-        <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--surface2)', padding: '2px 8px', borderRadius: 4 }}>{item.categoria}</span>
+        <span style={{ fontSize: 12, color: 'var(--text)', opacity: 0.7, background: 'var(--surface2)', padding: '2px 8px', borderRadius: 4 }}>{item.categoria}</span>
       </td>
       <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: colorAccent, fontWeight: 600 }}>
         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}
@@ -149,7 +149,7 @@ export const EditableRow = ({ item, onSave, onDelete, categorias, colorAccent = 
 // ─── SECTION HEADER ──────────────────────────────────────────────────────────
 export const SectionHeader = ({ children, action }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-    <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>{children}</h3>
+    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: 1, opacity: 0.85 }}>{children}</h3>
     {action}
   </div>
 );
@@ -182,8 +182,8 @@ export const ProgressBar = ({ value, max, color = 'var(--blue)', label, sub }) =
     <div>
       {(label || sub) && (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-          {label && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{label}</span>}
-          {sub && <span style={{ fontSize: 12, fontWeight: 700 }}>{sub}</span>}
+          {label && <span style={{ fontSize: 13, color: 'var(--text)', opacity: 0.8 }}>{label}</span>}
+          {sub && <span style={{ fontSize: 13, fontWeight: 700 }}>{sub}</span>}
         </div>
       )}
       <div style={{ background: 'var(--surface2)', borderRadius: 4, height: 7, overflow: 'hidden' }}>

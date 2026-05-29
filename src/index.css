@@ -7,7 +7,7 @@
   --border:    #232B3E;
   --border2:   #2D3A52;
   --text:      #E8EDF5;
-  --muted:     #6B7A99;
+  --muted:     #8A9BBB;
   --green:     #10D996;
   --green-dim: #0A3D2A;
   --red:       #FF4D6D;
@@ -20,7 +20,7 @@
   --font-mono: 'DM Mono', monospace;
 }
 
-html { font-size: 14px; }
+html { font-size: 15px; }
 body { background: var(--bg); color: var(--text); font-family: var(--font-ui); line-height: 1.5; min-height: 100vh; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }

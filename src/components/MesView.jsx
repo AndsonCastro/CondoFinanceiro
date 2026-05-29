@@ -294,29 +294,29 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
   return (
     <Card style={{ marginTop: 16, border: '1px solid rgba(99,102,241,0.3)' }}>
       <SectionHeader>
-        <Clock size={13} style={{ display: 'inline', marginRight: 6, color: '#818cf8' }} />
+        <Clock size={14} style={{ display: 'inline', marginRight: 6, color: '#818cf8' }} />
         <span style={{ color: '#a5b4fc' }}>Inadimplências Anteriores</span>
         {totalPendentes > 0 && (
-          <span style={{ marginLeft: 8, fontSize: 10, background: 'rgba(239,68,68,0.15)', color: 'var(--red)', padding: '1px 7px', borderRadius: 20, fontWeight: 800 }}>
+          <span style={{ marginLeft: 8, fontSize: 11, background: 'rgba(239,68,68,0.18)', color: 'var(--red)', padding: '2px 9px', borderRadius: 20, fontWeight: 800 }}>
             {totalPendentes} pendente{totalPendentes > 1 ? 's' : ''}
           </span>
         )}
       </SectionHeader>
-      <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 12 }}>
+      <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14 }}>
         Clique na célula para registrar/desfazer pagamento de mês anterior. A receita entra neste mês.
       </p>
 
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ borderCollapse: 'collapse', fontSize: 11, minWidth: 'max-content' }}>
+        <table style={{ borderCollapse: 'collapse', minWidth: 'max-content' }}>
           <thead>
             <tr>
-              <th style={{ padding: '4px 12px 4px 4px', textAlign: 'left', color: 'var(--muted)', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
+              <th style={{ padding: '6px 16px 6px 6px', textAlign: 'left', color: 'var(--text)', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
                 Apartamento
               </th>
               {colunas.map(({ anoRef, mesRef }) => (
-                <th key={`${anoRef}-${mesRef}`} style={{ padding: '5px 4px', textAlign: 'center', fontWeight: 700, whiteSpace: 'nowrap', minWidth: 44 }}>
-                  <div style={{ fontSize: 10, color: 'var(--text)', opacity: 0.85 }}>{MESES[mesRef - 1]}</div>
-                  <div style={{ fontSize: 9, color: '#818cf8', fontWeight: 600 }}>{String(anoRef).slice(2)}</div>
+                <th key={`${anoRef}-${mesRef}`} style={{ padding: '6px 6px', textAlign: 'center', fontWeight: 700, whiteSpace: 'nowrap', minWidth: 54 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 700 }}>{MESES[mesRef - 1]}</div>
+                  <div style={{ fontSize: 11, color: '#a5b4fc', fontWeight: 600 }}>{String(anoRef).slice(2)}</div>
                 </th>
               ))}
             </tr>
@@ -328,33 +328,30 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
                 <tr key={key}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <td style={{ padding: '3px 12px 3px 4px', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, position: 'sticky', left: 0, background: 'inherit', zIndex: 1, borderRight: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
-                    {key}
-                    {contato.nome && <span style={{ marginLeft: 6, fontFamily: 'var(--font-ui)', fontWeight: 400, fontSize: 10, color: 'var(--muted)' }}>{contato.nome}</span>}
+                  <td style={{ padding: '5px 16px 5px 6px', position: 'sticky', left: 0, background: 'inherit', zIndex: 1, borderRight: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 13, color: 'var(--text)' }}>{key}</span>
+                    {contato.nome && <span style={{ marginLeft: 8, fontFamily: 'var(--font-ui)', fontWeight: 500, fontSize: 12, color: 'var(--muted)' }}>{contato.nome}</span>}
                   </td>
                   {colunas.map(({ anoRef, mesRef, pagamentos_aptos, pagamentos_tardios }) => {
                     if (pagamentos_aptos[key]) {
-                      // Pagou no prazo neste mês — célula vazia
-                      return <td key={`${anoRef}-${mesRef}`} style={{ padding: '3px 4px' }}><div style={{ width: 16, height: 16, margin: '0 auto' }} /></td>;
+                      return <td key={`${anoRef}-${mesRef}`} style={{ padding: '5px 6px' }}><div style={{ width: 24, height: 24, margin: '0 auto' }} /></td>;
                     }
                     const tardioOutro = pagamentos_tardios[key];
                     const pagoAqui = tardiosAqui.has(`${key}_${mesRef}_${anoRef}`);
 
                     if (tardioOutro && !pagoAqui) {
-                      // Pago em outro mês — cinza com ✓
                       return (
-                        <td key={`${anoRef}-${mesRef}`} style={{ padding: '3px 4px', textAlign: 'center' }}>
+                        <td key={`${anoRef}-${mesRef}`} style={{ padding: '5px 6px', textAlign: 'center' }}>
                           <div title={`Pago em ${MESES[tardioOutro.mes_pago - 1]}/${tardioOutro.ano_pago}`}
-                            style={{ width: 16, height: 16, borderRadius: 4, background: 'rgba(99,102,241,0.22)', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#818cf8', fontWeight: 800 }}>
+                            style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(99,102,241,0.25)', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#a5b4fc', fontWeight: 800 }}>
                             ✓
                           </div>
                         </td>
                       );
                     }
 
-                    // Pendente ou registrado neste mês — clicável
                     return (
-                      <td key={`${anoRef}-${mesRef}`} style={{ padding: '3px 4px', textAlign: 'center' }}>
+                      <td key={`${anoRef}-${mesRef}`} style={{ padding: '5px 6px', textAlign: 'center' }}>
                         <div
                           title={pagoAqui
                             ? `Clique para desfazer — ${MESES_FULL[mesRef - 1]}/${anoRef}`
@@ -364,12 +361,15 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
                             : store.registrarPagamentoTardio(anoAtual, mesAtual, key, anoRef, mesRef)
                           }
                           style={{
-                            width: 16, height: 16, borderRadius: 4,
-                            background: pagoAqui ? '#6366f1' : 'rgba(239,68,68,0.65)',
+                            width: 24, height: 24, borderRadius: 6,
+                            background: pagoAqui ? '#6366f1' : 'rgba(239,68,68,0.75)',
                             margin: '0 auto', cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 9, color: '#fff', fontWeight: 800,
-                          }}>
+                            fontSize: 13, color: '#fff', fontWeight: 800,
+                            transition: 'opacity 0.15s',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+                          onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
                           {pagoAqui && '✓'}
                         </div>
                       </td>
@@ -382,15 +382,15 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
         </table>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 20, marginTop: 14, flexWrap: 'wrap' }}>
         {[
-          { bg: 'rgba(239,68,68,0.65)', label: 'Pendente — clique para registrar' },
+          { bg: 'rgba(239,68,68,0.75)', label: 'Pendente — clique para registrar' },
           { bg: '#6366f1', label: 'Registrado neste mês — clique para desfazer' },
-          { bg: 'rgba(99,102,241,0.22)', label: 'Pago em outro mês' },
+          { bg: 'rgba(99,102,241,0.25)', label: 'Pago em outro mês' },
         ].map(({ bg, label }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 2, background: bg, flexShrink: 0 }} />
-            <span style={{ fontSize: 10, color: 'var(--muted)' }}>{label}</span>
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div style={{ width: 13, height: 13, borderRadius: 3, background: bg, flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: 'var(--text)', opacity: 0.8 }}>{label}</span>
           </div>
         ))}
       </div>
