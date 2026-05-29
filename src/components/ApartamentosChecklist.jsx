@@ -4,7 +4,7 @@ import { fmt, MESES, MESES_FULL } from '../utils/data';
 import { Card, SectionHeader, ProgressBar } from './UI';
 
 // ─── CONFIGURAÇÃO FIXA DO CONDOMÍNIO ────────────────────────────────────────
-const BLOCOS = [1, 2, 3, 4, 5, 6, 7, 8];
+const BLOCOS = [1, 3, 5, 7, 2, 4, 6, 8];
 const APTOS  = ['101', '102', '201', '202'];
 
 const aptoKey = (bloco, apto) => `B${bloco}-${apto}`;
@@ -69,10 +69,11 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
     label: `Ap ${a}`,
     status: pagamentos[aptoKey(bloco, a)] || null,
     inabitavel: contatos?.[aptoKey(bloco, a)]?.inabitavel || false,
-  })).filter(a => !a.inabitavel);
+    isento: contatos?.[aptoKey(bloco, a)]?.isento || false,
+  }));
 
-  const pagos = aptos.filter(a => a.status !== null).length;
-  const totalBloco = aptos.length;
+  const pagos = aptos.filter(a => !a.inabitavel && !a.isento && a.status !== null).length;
+  const totalBloco = aptos.filter(a => !a.inabitavel && !a.isento).length;
 
   const buildWhatsAppLink = (key) => {
     const c = contatos?.[key] || {};
@@ -107,7 +108,30 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {aptos.map(({ key, label, status }) => {
+        {aptos.map(({ key, label, status, inabitavel, isento }) => {
+          if (inabitavel || isento) {
+            const badge = inabitavel
+              ? { label: 'INABITÁVEL', color: 'var(--red)', bg: 'rgba(255,77,109,0.12)' }
+              : { label: 'ISENTO', color: 'var(--green)', bg: 'rgba(16,217,150,0.12)' };
+            return (
+              <div key={key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: inabitavel ? 'rgba(255,77,109,0.05)' : 'rgba(16,217,150,0.05)',
+                borderRadius: 8, padding: '6px 10px',
+                border: `1px solid ${inabitavel ? 'rgba(255,77,109,0.15)' : 'rgba(16,217,150,0.15)'}`,
+                opacity: 0.7,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <Circle size={15} color={badge.color} />
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{label}</span>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 800, color: badge.color, background: badge.bg, padding: '2px 8px', borderRadius: 20, letterSpacing: 0.5 }}>
+                  {badge.label}
+                </span>
+              </div>
+            );
+          }
+
           const tardio = pagamentos_tardios?.[key];
           const alertar = isDeadline && !status && !tardio;
           const waLink = (!status && !tardio) ? buildWhatsAppLink(key) : null;
@@ -196,21 +220,26 @@ export default function ApartamentosChecklist({ pagamentos = {}, pagamentos_tard
     hoje.getFullYear() === ano
   );
 
+  const inabitaveis = useMemo(() =>
+    new Set(Object.entries(contatos).filter(([, c]) => c.inabitavel).map(([k]) => k))
+  , [contatos]);
+
+  const isentos = useMemo(() =>
+    new Set(Object.entries(contatos).filter(([, c]) => c.isento).map(([k]) => k))
+  , [contatos]);
+
   const inadimplentesComContato = useMemo(() => {
     return getAllAptos().filter(key => {
+      if (inabitaveis.has(key) || isentos.has(key)) return false;
       const status = pagamentos[key];
       const c = contatos?.[key] || {};
       const tel = (c.tel1 || c.tel2 || '').replace(/\D/g, '');
       return !status && !pagamentos_tardios[key] && tel;
     }).length;
-  }, [pagamentos, pagamentos_tardios, contatos]);
-
-  const inabitaveis = useMemo(() =>
-    new Set(Object.entries(contatos).filter(([, c]) => c.inabitavel).map(([k]) => k))
-  , [contatos]);
+  }, [pagamentos, pagamentos_tardios, contatos, inabitaveis, isentos]);
 
   const stats = useMemo(() => {
-    const habitaveis = getAllAptos().filter(k => !inabitaveis.has(k));
+    const habitaveis = getAllAptos().filter(k => !inabitaveis.has(k) && !isentos.has(k));
     const ate10   = habitaveis.filter(k => pagamentos[k] === 'ate10').length;
     const apos10  = habitaveis.filter(k => pagamentos[k] === 'apos10').length;
     const tardios = habitaveis.filter(k => !pagamentos[k] && pagamentos_tardios[k]).length;
@@ -219,14 +248,14 @@ export default function ApartamentosChecklist({ pagamentos = {}, pagamentos_tard
     const nao_pago = total - pagos - tardios;
     const totalArrecadado = pagos * TAXA;
     return { ate10, apos10, pagos, tardios, total, nao_pago, totalArrecadado };
-  }, [pagamentos, pagamentos_tardios, inabitaveis, TAXA]);
+  }, [pagamentos, pagamentos_tardios, inabitaveis, isentos, TAXA]);
 
   const handleToggle = (key, novoStatus) => {
     onChange({ ...pagamentos, [key]: novoStatus });
   };
 
   const handleCobrarTodos = () => {
-    const inadimplentes = getAllAptos().filter(key => !pagamentos[key] && !pagamentos_tardios[key] && !inabitaveis.has(key));
+    const inadimplentes = getAllAptos().filter(key => !pagamentos[key] && !pagamentos_tardios[key] && !inabitaveis.has(key) && !isentos.has(key));
     inadimplentes.forEach((key, i) => {
       const c = contatos?.[key] || {};
       const tel = (c.tel1 || c.tel2 || '').replace(/\D/g, '');
@@ -240,7 +269,10 @@ export default function ApartamentosChecklist({ pagamentos = {}, pagamentos_tard
 
   const marcarBloco = (bloco, status) => {
     const updates = {};
-    APTOS.forEach(a => { updates[aptoKey(bloco, a)] = status; });
+    APTOS.forEach(a => {
+      const key = aptoKey(bloco, a);
+      if (!isentos.has(key)) updates[key] = status;
+    });
     onChange({ ...pagamentos, ...updates });
   };
 

@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { fmt, MESES_FULL, MESES, calcTotais, calcAnual } from './data';
+import { fmt, MESES_FULL, MESES, calcTotais, calcAnual, PONTUALIDADE_TOTAL_UNIDADES } from './data';
 
 const COR_VERDE  = [16, 217, 150];
 const COR_VERM   = [255, 77, 109];
@@ -13,7 +13,10 @@ export const gerarRelatorioPDF = (mesData, config) => {
   const totais = calcTotais(mesData);
   const nomeMes = MESES_FULL[mes - 1];
   const condo = config?.nome_condominio || 'Condomínio';
-  const naoPago = mesData.pontualidade.total_unidades - mesData.pontualidade.pago_ate_dia10 - mesData.pontualidade.pago_apos_dia10;
+  const inabitavelCount = Object.values(config?.contatos || {}).filter(c => c.inabitavel).length;
+  const isentoCount = Object.values(config?.contatos || {}).filter(c => c.isento).length;
+  const totalUnidades = PONTUALIDADE_TOTAL_UNIDADES - inabitavelCount - isentoCount;
+  const naoPago = totalUnidades - mesData.pontualidade.pago_ate_dia10 - mesData.pontualidade.pago_apos_dia10;
 
   // ── Cabeçalho ──────────────────────────────────────────────────────────────
   doc.setFillColor(...COR_HEADER);
@@ -30,7 +33,7 @@ export const gerarRelatorioPDF = (mesData, config) => {
   // ── Resumo do mês ──────────────────────────────────────────────────────────
   autoTable(doc, {
     startY: 36,
-    head: [['Indicador', 'Valor']],
+    head: [['Indicador', { content: 'Valor', styles: { halign: 'right' } }]],
     body: [
       ['Saldo Inicial', fmt(mesData.saldo_inicial)],
       ['Total de Receitas', fmt(totais.totalReceitas)],
@@ -56,7 +59,7 @@ export const gerarRelatorioPDF = (mesData, config) => {
   const receitasAgrupadas = [
     ...mesData.receitas.filter(r => !r._tardio),
     ...(tardios.length > 0 ? [{
-      descricao: `Atrasados (${tardios.length} pagamento${tardios.length > 1 ? 's' : ''})`,
+      descricao: 'Atrasados',
       categoria: 'Taxa de Condomínio',
       valor: tardios.reduce((s, r) => s + r.valor, 0),
     }] : []),
@@ -64,11 +67,11 @@ export const gerarRelatorioPDF = (mesData, config) => {
 
   autoTable(doc, {
     startY: y1 + 4,
-    head: [['Descrição', 'Categoria', 'Valor']],
+    head: [['Descrição', 'Categoria', { content: 'Valor', styles: { halign: 'right' } }]],
     body: receitasAgrupadas.length
-      ? receitasAgrupadas.map(r => [r.descricao, r.categoria, fmt(r.valor)])
+      ? receitasAgrupadas.map(r => [r.descricao.replace(/\s*\(.*\)$/, ''), r.categoria, fmt(r.valor)])
       : [['Nenhuma receita registrada', '', '']],
-    foot: [['Total', '', fmt(totais.totalReceitas)]],
+    foot: [['Total', '', { content: fmt(totais.totalReceitas), styles: { halign: 'right' } }]],
     theme: 'striped',
     headStyles: { fillColor: COR_VERDE, textColor: 255 },
     footStyles: { fillColor: [230, 255, 245], textColor: [0, 100, 60], fontStyle: 'bold' },
@@ -86,11 +89,11 @@ export const gerarRelatorioPDF = (mesData, config) => {
 
   autoTable(doc, {
     startY: y2 + 4,
-    head: [['Descrição', 'Categoria', 'Valor']],
+    head: [['Descrição', 'Categoria', { content: 'Valor', styles: { halign: 'right' } }]],
     body: mesData.despesas.length
       ? mesData.despesas.map(d => [d.descricao, d.categoria, fmt(d.valor)])
       : [['Nenhuma despesa registrada', '', '']],
-    foot: [['Total', '', fmt(totais.totalDespesas)]],
+    foot: [['Total', '', { content: fmt(totais.totalDespesas), styles: { halign: 'right' } }]],
     theme: 'striped',
     headStyles: { fillColor: COR_VERM, textColor: 255 },
     footStyles: { fillColor: [255, 235, 238], textColor: [150, 0, 30], fontStyle: 'bold' },
@@ -106,14 +109,17 @@ export const gerarRelatorioPDF = (mesData, config) => {
     doc.setTextColor(0, 0, 0);
     doc.text('Pontualidade de Pagamentos', 14, y3);
     const pont = mesData.pontualidade;
+    const pct = (n) => totalUnidades > 0 ? `${((n / totalUnidades) * 100).toFixed(0)}%` : '0%';
+    const bodyPont = [
+      ['Pago até dia 10', pont.pago_ate_dia10, pct(pont.pago_ate_dia10)],
+      ['Pago após dia 10', pont.pago_apos_dia10, pct(pont.pago_apos_dia10)],
+      ['Não pago', Math.max(naoPago, 0), pct(Math.max(naoPago, 0))],
+      ...(isentoCount > 0 ? [['Isento', isentoCount, '—']] : []),
+    ];
     autoTable(doc, {
       startY: y3 + 4,
-      head: [['Status', 'Unidades', '%']],
-      body: [
-        ['Pago até dia 10', pont.pago_ate_dia10, `${pont.total_unidades > 0 ? ((pont.pago_ate_dia10 / pont.total_unidades) * 100).toFixed(0) : 0}%`],
-        ['Pago após dia 10', pont.pago_apos_dia10, `${pont.total_unidades > 0 ? ((pont.pago_apos_dia10 / pont.total_unidades) * 100).toFixed(0) : 0}%`],
-        ['Não pago', Math.max(naoPago, 0), `${pont.total_unidades > 0 ? ((Math.max(naoPago, 0) / pont.total_unidades) * 100).toFixed(0) : 0}%`],
-      ],
+      head: [['Status', { content: 'Unidades', styles: { halign: 'center' } }, { content: '%', styles: { halign: 'center' } }]],
+      body: bodyPont,
       theme: 'striped',
       headStyles: { fillColor: COR_AZUL, textColor: 255 },
       columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' } },

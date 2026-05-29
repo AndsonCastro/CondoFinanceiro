@@ -76,10 +76,13 @@ export default function ConfigView({ config, updateConfig, data, importData, res
     setAvisoModal(null);
   };
 
+  const hoje = new Date();
+  const [taxaVigencia, setTaxaVigencia] = useState({ mes: hoje.getMonth() + 1, ano: hoje.getFullYear() });
+
   const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
 
   const handleSave = () => {
-    updateConfig(form);
+    updateConfig(form, { vigenteAno: taxaVigencia.ano, vigenteMes: taxaVigencia.mes });
     showMsg('✅ Configurações salvas!');
   };
 
@@ -171,6 +174,18 @@ export default function ConfigView({ config, updateConfig, data, importData, res
               onChange={e => setForm(f => ({ ...f, taxa_condominio: parseFloat(e.target.value) || 0 }))}
               style={{ width: 120 }} />
             <p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 12 }}>Valor cobrado por unidade no checklist de pagamentos.</p>
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <label style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Vigente a partir de</label>
+              <select value={taxaVigencia.mes} onChange={e => setTaxaVigencia(v => ({ ...v, mes: parseInt(e.target.value) }))} style={{ fontSize: 12, padding: '4px 8px' }}>
+                {['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'].map((m, i) => (
+                  <option key={i} value={i + 1}>{m}</option>
+                ))}
+              </select>
+              <input type="number" min="2020" max="2099" value={taxaVigencia.ano}
+                onChange={e => setTaxaVigencia(v => ({ ...v, ano: parseInt(e.target.value) || hoje.getFullYear() }))}
+                style={{ width: 76, fontSize: 12, padding: '4px 8px' }} />
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>Meses anteriores não serão alterados.</span>
+            </div>
           </div>
           <Btn variant="primary" onClick={handleSave} style={{ alignSelf: 'flex-start' }}>Salvar Configurações</Btn>
         </div>
@@ -286,9 +301,9 @@ export default function ConfigView({ config, updateConfig, data, importData, res
           style={{ width: '100%', marginBottom: 12 }}
         />
         <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 940 }}>
+          <div style={{ minWidth: 1020 }}>
             {/* Cabeçalho */}
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 110px 110px 1fr 110px 110px 80px 46px', gap: 6, padding: '4px 8px 8px', marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 110px 110px 1fr 110px 110px 80px 80px 46px', gap: 6, padding: '4px 8px 8px', marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Apto</span>
               <span style={{ fontSize: 10, color: 'var(--blue)', fontWeight: 700, letterSpacing: 1 }}>— CONDÔMINO —</span>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Telefone 1</span>
@@ -297,23 +312,31 @@ export default function ConfigView({ config, updateConfig, data, importData, res
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Contato 1</span>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Contato 2</span>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Inabitável</span>
+              <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Isento</span>
               <span style={{ fontSize: 10, color: '#25D366', fontWeight: 700, letterSpacing: 1, textAlign: 'center' }}>AVISO</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {TODOS_APTOS.filter(key => key.toLowerCase().includes(filtroApto.toLowerCase())).map(key => {
                 const inabitavel = contatosForm[key]?.inabitavel || false;
+                const isento = contatosForm[key]?.isento || false;
                 const row = contatosForm[key] || {};
+                const disabled = inabitavel || isento;
+                const rowBg = inabitavel ? 'rgba(255,77,109,0.07)' : isento ? 'rgba(16,217,150,0.05)' : 'var(--surface2)';
+                const keyColor = inabitavel ? 'var(--red)' : isento ? 'var(--green)' : 'var(--muted)';
                 return (
-                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 110px 110px 1fr 110px 110px 80px 46px', gap: 6, alignItems: 'center', padding: '4px 8px', borderRadius: 8, background: inabitavel ? 'rgba(255,77,109,0.07)' : 'var(--surface2)', opacity: inabitavel ? 0.7 : 1 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: inabitavel ? 'var(--red)' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{key}</span>
-                    <input value={row.nome || ''} onChange={e => updateContato(key, 'nome', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', opacity: inabitavel ? 0.4 : 1 }} />
-                    <input value={row.tel1 || ''} onChange={e => updateContato(key, 'tel1', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }} />
-                    <input placeholder="Opcional" value={row.tel2 || ''} onChange={e => updateContato(key, 'tel2', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }} />
-                    <input value={row.proprietario || ''} onChange={e => updateContato(key, 'proprietario', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', opacity: inabitavel ? 0.4 : 1 }} />
-                    <input value={row.contato1 || ''} onChange={e => updateContato(key, 'contato1', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }} />
-                    <input placeholder="Opcional" value={row.contato2 || ''} onChange={e => updateContato(key, 'contato2', e.target.value)} disabled={inabitavel} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: inabitavel ? 0.4 : 1 }} />
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 110px 110px 1fr 110px 110px 80px 80px 46px', gap: 6, alignItems: 'center', padding: '4px 8px', borderRadius: 8, background: rowBg, opacity: disabled ? 0.7 : 1 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: keyColor, fontFamily: 'var(--font-mono)' }}>{key}</span>
+                    <input value={row.nome || ''} onChange={e => updateContato(key, 'nome', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', opacity: disabled ? 0.4 : 1 }} />
+                    <input value={row.tel1 || ''} onChange={e => updateContato(key, 'tel1', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: disabled ? 0.4 : 1 }} />
+                    <input placeholder="Opcional" value={row.tel2 || ''} onChange={e => updateContato(key, 'tel2', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: disabled ? 0.4 : 1 }} />
+                    <input value={row.proprietario || ''} onChange={e => updateContato(key, 'proprietario', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', opacity: disabled ? 0.4 : 1 }} />
+                    <input value={row.contato1 || ''} onChange={e => updateContato(key, 'contato1', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: disabled ? 0.4 : 1 }} />
+                    <input placeholder="Opcional" value={row.contato2 || ''} onChange={e => updateContato(key, 'contato2', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: disabled ? 0.4 : 1 }} />
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={inabitavel} onChange={e => updateContato(key, 'inabitavel', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--red)' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <input type="checkbox" checked={isento} onChange={e => updateContato(key, 'isento', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--green)' }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       {(row.tel1 || row.contato1) && !inabitavel && (

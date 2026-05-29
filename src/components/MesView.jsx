@@ -262,15 +262,17 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
       .map(r => `${r._apto}_${r._mes_ref}_${r._ano_ref}`)
   );
 
-  const todosAptos = getAllAptos().filter(k => !contatos[k]?.inabitavel);
+  const todosAptos = getAllAptos().filter(k => !contatos[k]?.inabitavel && !contatos[k]?.isento);
 
-  // Colunas: meses anteriores que têm pelo menos 1 apt pendente
+  // Colunas: meses anteriores que têm pelo menos 1 apt pendente (a partir de Mai/2026)
+  const INAD_ANO_INICIO = 2026, INAD_MES_INICIO = 5;
   const colunas = [];
   for (const [anoStr, anoData] of Object.entries(store.data?.anos || {}).sort()) {
     const anoNum = parseInt(anoStr);
     for (const [mesStr, mesData] of Object.entries(anoData.meses || {}).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))) {
       const mesNum = parseInt(mesStr);
       if (anoNum > anoAtual || (anoNum === anoAtual && mesNum >= mesAtual)) continue;
+      if (anoNum < INAD_ANO_INICIO || (anoNum === INAD_ANO_INICIO && mesNum < INAD_MES_INICIO)) continue;
       const { pagamentos_aptos = {}, pagamentos_tardios = {} } = mesData;
       if (todosAptos.some(k => !pagamentos_aptos[k]))
         colunas.push({ anoRef: anoNum, mesRef: mesNum, pagamentos_aptos, pagamentos_tardios });

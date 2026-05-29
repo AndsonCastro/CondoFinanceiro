@@ -22,14 +22,17 @@ const BLOCOS = [1,2,3,4,5,6,7,8];
 export default function InadimplenciaView({ data }) {
   const [filtroBloco, setFiltroBloco] = useState('todos');
   const inabitaveis = useMemo(() =>
-    new Set(Object.entries(data.config?.contatos || {}).filter(([, c]) => c.inabitavel).map(([k]) => k))
+    new Set(Object.entries(data.config?.contatos || {}).filter(([, c]) => c.inabitavel || c.isento).map(([k]) => k))
   , [data.config?.contatos]);
 
+  const INAD_ANO_INICIO = 2026, INAD_MES_INICIO = 5;
   const mesesOrdenados = useMemo(() => {
     const result = [];
     Object.keys(data.anos || {}).sort().forEach(ano => {
       Object.keys(data.anos[ano].meses || {}).sort((a, b) => a - b).forEach(mes => {
-        result.push({ ano: parseInt(ano), mes: parseInt(mes) });
+        const a = parseInt(ano), m = parseInt(mes);
+        if (a < INAD_ANO_INICIO || (a === INAD_ANO_INICIO && m < INAD_MES_INICIO)) return;
+        result.push({ ano: a, mes: m });
       });
     });
     return result;

@@ -43,16 +43,20 @@ export default function useStore() {
   }, []);
 
   // ─── CONFIG ─────────────────────────────────────────────────────────────────
-  const updateConfig = useCallback((patch) => {
+  const updateConfig = useCallback((patch, opts = {}) => {
     update(d => {
       const oldTaxa = d.config?.taxa_condominio;
       d.config = { ...d.config, ...patch };
       const newTaxa = d.config?.taxa_condominio;
 
-      // Se a taxa mudou, recalcula auto-receita em todos os meses já existentes
       if (patch.taxa_condominio !== undefined && newTaxa !== oldTaxa) {
-        for (const anoData of Object.values(d.anos || {})) {
-          for (const mesData of Object.values(anoData.meses || {})) {
+        const { vigenteAno, vigenteMes } = opts;
+        for (const [anoStr, anoData] of Object.entries(d.anos || {})) {
+          for (const [mesStr, mesData] of Object.entries(anoData.meses || {})) {
+            if (vigenteAno && vigenteMes) {
+              const a = parseInt(anoStr), m = parseInt(mesStr);
+              if (a < vigenteAno || (a === vigenteAno && m < vigenteMes)) continue;
+            }
             const idx = mesData.receitas.findIndex(r => r.id === '__taxa_checklist__');
             if (idx >= 0) {
               const totalPagos = (mesData.pontualidade?.pago_ate_dia10 || 0) + (mesData.pontualidade?.pago_apos_dia10 || 0);
@@ -119,7 +123,16 @@ export default function useStore() {
 
   const deleteMes = useCallback((ano, mes) => {
     update(d => {
-      if (d.anos[ano]?.meses) delete d.anos[ano].meses[mes];
+      const mesData = d.anos[ano]?.meses?.[mes];
+      if (mesData) {
+        (mesData.receitas || []).forEach(r => {
+          if (r._tardio && r._apto && r._mes_ref != null && r._ano_ref != null) {
+            const tardiosRef = d.anos[r._ano_ref]?.meses?.[r._mes_ref]?.pagamentos_tardios;
+            if (tardiosRef) delete tardiosRef[r._apto];
+          }
+        });
+        delete d.anos[ano].meses[mes];
+      }
       if (d.anos[ano] && Object.keys(d.anos[ano].meses || {}).length === 0) delete d.anos[ano];
       return d;
     });
@@ -222,8 +235,8 @@ export default function useStore() {
         if (status === 'ate10')  pago_ate_dia10++;
         if (status === 'apos10') pago_apos_dia10++;
       });
-      const inabitavelCount = Object.values(d.config?.contatos || {}).filter(c => c.inabitavel).length;
-      d.anos[ano].meses[mes].pontualidade = { total_unidades: PONTUALIDADE_TOTAL_UNIDADES - inabitavelCount, pago_ate_dia10, pago_apos_dia10 };
+      const excluidos = Object.values(d.config?.contatos || {}).filter(c => c.inabitavel || c.isento).length;
+      d.anos[ano].meses[mes].pontualidade = { total_unidades: PONTUALIDADE_TOTAL_UNIDADES - excluidos, pago_ate_dia10, pago_apos_dia10 };
 
       // 3. Upsert receita de Taxa de Condomínio gerada pelo checklist
       const totalPagos = pago_ate_dia10 + pago_apos_dia10;
@@ -235,11 +248,11 @@ export default function useStore() {
         d.anos[ano].meses[mes].receitas = receitas.filter(r => r.id !== ID_TAXA_CHECKLIST);
       } else if (idx >= 0) {
         receitas[idx].valor = valorTaxa;
-        receitas[idx].descricao = `Taxa de Condomínio (${totalPagos} aptos x R$ ${TAXA_COND.toFixed(2)})`;
+        receitas[idx].descricao = 'Taxa de Condomínio';
       } else {
         receitas.unshift({
           id: ID_TAXA_CHECKLIST,
-          descricao: `Taxa de Condomínio (${totalPagos} aptos x R$ ${TAXA_COND.toFixed(2)})`,
+          descricao: 'Taxa de Condomínio',
           categoria: 'Taxa de Condomínio',
           valor: valorTaxa,
           _auto: true,
