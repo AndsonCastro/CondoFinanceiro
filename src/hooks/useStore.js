@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { loadData, saveData, createMes, calcTotais, uid, PONTUALIDADE_TOTAL_UNIDADES } from '../utils/data';
+import { loadData, saveData, createMes, calcTotais, uid, PONTUALIDADE_TOTAL_UNIDADES, getTaxaParaMes } from '../utils/data';
 
 const EMPTY_DATA = {
   config: {
@@ -51,17 +51,20 @@ export default function useStore() {
 
       if (patch.taxa_condominio !== undefined && newTaxa !== oldTaxa) {
         const { vigenteAno, vigenteMes } = opts;
+        if (vigenteAno && vigenteMes) {
+          d.config.taxa_anterior = oldTaxa;
+          d.config.taxa_vigencia = { ano: vigenteAno, mes: vigenteMes };
+        }
         for (const [anoStr, anoData] of Object.entries(d.anos || {})) {
           for (const [mesStr, mesData] of Object.entries(anoData.meses || {})) {
-            if (vigenteAno && vigenteMes) {
-              const a = parseInt(anoStr), m = parseInt(mesStr);
-              if (a < vigenteAno || (a === vigenteAno && m < vigenteMes)) continue;
-            }
+            const a = parseInt(anoStr), m = parseInt(mesStr);
+            const isBefore = vigenteAno && vigenteMes && (a < vigenteAno || (a === vigenteAno && m < vigenteMes));
+            const taxaAplicar = isBefore ? oldTaxa : newTaxa;
             const idx = mesData.receitas.findIndex(r => r.id === '__taxa_checklist__');
             if (idx >= 0) {
               const totalPagos = (mesData.pontualidade?.pago_ate_dia10 || 0) + (mesData.pontualidade?.pago_apos_dia10 || 0);
-              mesData.receitas[idx].valor = totalPagos * newTaxa;
-              mesData.receitas[idx].descricao = `Taxa de Condomínio (${totalPagos} aptos x R$ ${newTaxa.toFixed(2)})`;
+              mesData.receitas[idx].valor = totalPagos * taxaAplicar;
+              mesData.receitas[idx].descricao = `Taxa de Condomínio (${totalPagos} aptos x R$ ${taxaAplicar.toFixed(2)})`;
             }
           }
         }
@@ -222,8 +225,8 @@ export default function useStore() {
     update(d => {
       if (!d.anos[ano]?.meses?.[mes]) return d;
 
-      // Lê taxa sempre do estado atual, não de closure memoizada
-      const TAXA_COND = d.config?.taxa_condominio || 50;
+      // Usa taxa vigente para o mês (respeita histórico de vigência)
+      const TAXA_COND = getTaxaParaMes(ano, mes, d.config);
 
       // 1. Salva o mapa de pagamentos
       d.anos[ano].meses[mes].pagamentos_aptos = pagamentos;

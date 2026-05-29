@@ -9,6 +9,15 @@ export const CATEGORIAS_DESPESA = ['Energia (Enel)','Internet','Poda / Limpeza',
 
 export const PONTUALIDADE_TOTAL_UNIDADES = 32;
 
+// Retorna a taxa aplicável a um dado mês, respeitando o histórico de vigência
+export const getTaxaParaMes = (ano, mes, config) => {
+  const vig = config?.taxa_vigencia;
+  if (vig && config?.taxa_anterior != null) {
+    if (ano < vig.ano || (ano === vig.ano && mes < vig.mes)) return config.taxa_anterior;
+  }
+  return config?.taxa_condominio || 50;
+};
+
 // ─── FORMATTERS ───────────────────────────────────────────────────────────────
 export const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v ?? 0);
