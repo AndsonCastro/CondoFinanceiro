@@ -63,7 +63,7 @@ const PagoCell = ({ pago, onSave }) => {
         return (
           <button
             onClick={() => onSave(null)}
-            title="Clique para desmarcar"
+            title={`${pago.tipo === 'credito' ? 'Crédito' : 'Débito'} · Clique para desmarcar`}
             style={{ background: accentBg, border: `1px solid ${accentColor}`, borderRadius: 8, cursor: 'pointer', padding: '4px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, lineHeight: 1 }}
           >
             <span style={{ color: accentColor, fontSize: 14, fontWeight: 900 }}>✓</span>
