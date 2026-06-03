@@ -43,38 +43,74 @@ const PagoCell = ({ pago, onSave }) => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ data: today, tipo: 'debito' });
 
-  if (pago) {
-    const [yyyy, mm, dd] = pago.data.split('-');
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
-        <span style={{ color: 'var(--green)', fontWeight: 700, fontSize: 13 }}>✓</span>
-        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{dd}/{mm}/{yyyy}</span>
-        <span style={{ fontSize: 10, background: pago.tipo === 'credito' ? 'rgba(99,102,241,0.18)' : 'rgba(16,185,129,0.18)', color: pago.tipo === 'credito' ? '#a5b4fc' : 'var(--green)', padding: '1px 5px', borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>
-          {pago.tipo === 'credito' ? 'Créd' : 'Déb'}
-        </span>
-        <button onClick={() => onSave(null)} title="Desmarcar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 12, padding: '0 2px', lineHeight: 1 }}>✕</button>
-      </div>
-    );
-  }
+  const confirmar = () => {
+    if (!form.data) return;
+    onSave({ ...form });
+    setOpen(false);
+  };
 
-  if (open) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
-        <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} style={{ width: 118, fontSize: 11 }} />
-        <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} style={{ fontSize: 11 }}>
-          <option value="debito">Débito</option>
-          <option value="credito">Crédito</option>
-        </select>
-        <button onClick={() => { if (form.data) { onSave({ ...form }); setOpen(false); } }} style={{ background: 'var(--green)', border: 'none', borderRadius: 4, color: '#000', cursor: 'pointer', padding: '2px 7px', fontWeight: 700, fontSize: 12 }}>✓</button>
-        <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 13 }}>✕</button>
-      </div>
-    );
-  }
+  const abrir = () => {
+    setForm({ data: today, tipo: 'debito' });
+    setOpen(true);
+  };
 
   return (
-    <button onClick={() => setOpen(true)} style={{ background: 'none', border: '1px dashed var(--border2)', borderRadius: 4, color: 'var(--muted)', cursor: 'pointer', padding: '2px 8px', fontSize: 11, whiteSpace: 'nowrap' }}>
-      Pagar
-    </button>
+    <>
+      {pago ? (() => {
+        const [yyyy, mm, dd] = pago.data.split('-');
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ color: 'var(--green)', fontWeight: 700, fontSize: 13 }}>✓</span>
+            <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{dd}/{mm}/{yyyy}</span>
+            <span style={{ fontSize: 10, background: pago.tipo === 'credito' ? 'rgba(99,102,241,0.18)' : 'rgba(16,185,129,0.18)', color: pago.tipo === 'credito' ? '#a5b4fc' : 'var(--green)', padding: '1px 6px', borderRadius: 3, fontWeight: 700 }}>
+              {pago.tipo === 'credito' ? 'Créd' : 'Déb'}
+            </span>
+            <button onClick={() => onSave(null)} title="Desmarcar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 13, padding: '0 2px', lineHeight: 1 }}>✕</button>
+          </div>
+        );
+      })() : (
+        <button onClick={abrir} style={{ background: 'none', border: '1px dashed var(--border2)', borderRadius: 4, color: 'var(--muted)', cursor: 'pointer', padding: '2px 10px', fontSize: 11, whiteSpace: 'nowrap' }}>
+          Pagar
+        </button>
+      )}
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Registrar pagamento" width={360}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Dia do pagamento</label>
+            <input
+              type="date"
+              value={form.data}
+              onChange={e => setForm(f => ({ ...f, data: e.target.value }))}
+              style={{ width: '100%', fontSize: 14, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border2)', background: 'var(--surface2)', color: 'var(--text)', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Forma de pagamento</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['debito', 'credito'].map(t => (
+                <button
+                  key={t}
+                  onClick={() => setForm(f => ({ ...f, tipo: t }))}
+                  style={{
+                    flex: 1, padding: '9px 0', borderRadius: 8, border: '1px solid', cursor: 'pointer', fontWeight: 600, fontSize: 13, transition: 'all 0.15s',
+                    background: form.tipo === t ? (t === 'debito' ? 'rgba(16,185,129,0.15)' : 'rgba(99,102,241,0.15)') : 'var(--surface2)',
+                    borderColor: form.tipo === t ? (t === 'debito' ? 'var(--green)' : '#818cf8') : 'var(--border)',
+                    color: form.tipo === t ? (t === 'debito' ? 'var(--green)' : '#a5b4fc') : 'var(--muted)',
+                  }}
+                >
+                  {t === 'debito' ? 'Débito' : 'Crédito'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+            <button onClick={() => setOpen(false)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid var(--border)', background: 'none', color: 'var(--muted)', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Cancelar</button>
+            <button onClick={confirmar} disabled={!form.data} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: form.data ? 'var(--green)' : 'var(--border)', color: form.data ? '#000' : 'var(--muted)', cursor: form.data ? 'pointer' : 'default', fontWeight: 700, fontSize: 13, transition: 'all 0.15s' }}>Confirmar</button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 };
 
