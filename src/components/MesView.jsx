@@ -57,16 +57,18 @@ const PagoCell = ({ pago, onSave }) => {
   return (
     <>
       {pago ? (() => {
-        const [yyyy, mm, dd] = pago.data.split('-');
+        const [, mm, dd] = pago.data.split('-');
+        const accentColor = pago.tipo === 'credito' ? '#818cf8' : 'var(--green)';
+        const accentBg   = pago.tipo === 'credito' ? 'rgba(99,102,241,0.12)' : 'rgba(16,185,129,0.12)';
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ color: 'var(--green)', fontWeight: 700, fontSize: 13 }}>✓</span>
-            <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{dd}/{mm}/{yyyy}</span>
-            <span style={{ fontSize: 10, background: pago.tipo === 'credito' ? 'rgba(99,102,241,0.18)' : 'rgba(16,185,129,0.18)', color: pago.tipo === 'credito' ? '#a5b4fc' : 'var(--green)', padding: '1px 6px', borderRadius: 3, fontWeight: 700 }}>
-              {pago.tipo === 'credito' ? 'Créd' : 'Déb'}
-            </span>
-            <button onClick={() => onSave(null)} title="Desmarcar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 13, padding: '0 2px', lineHeight: 1 }}>✕</button>
-          </div>
+          <button
+            onClick={() => onSave(null)}
+            title="Clique para desmarcar"
+            style={{ background: accentBg, border: `1px solid ${accentColor}`, borderRadius: 8, cursor: 'pointer', padding: '4px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, lineHeight: 1 }}
+          >
+            <span style={{ color: accentColor, fontSize: 14, fontWeight: 900 }}>✓</span>
+            <span style={{ color: accentColor, fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700, opacity: 0.85 }}>{dd}/{mm}</span>
+          </button>
         );
       })() : (
         <button onClick={abrir} style={{ background: 'none', border: '1px dashed var(--border2)', borderRadius: 4, color: 'var(--muted)', cursor: 'pointer', padding: '2px 10px', fontSize: 11, whiteSpace: 'nowrap' }}>
