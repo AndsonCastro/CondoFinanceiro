@@ -141,7 +141,7 @@ export const EditableRow = ({ item, onSave, onDelete, categorias, colorAccent = 
       <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: colorAccent, fontWeight: 600 }}>
         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}
       </td>
-      {hasExtra && <td style={{ padding: '9px 8px' }}>{extraCol}</td>}
+      {hasExtra && <td style={{ padding: '9px 8px', paddingLeft: 24 }}>{extraCol}</td>}
       <td style={{ padding: '9px 8px', textAlign: 'right', opacity: 0 }} className="row-actions">
         <Btn size="sm" variant="ghost" onClick={() => setEditing(true)}>✏</Btn>
         <Btn size="sm" variant="ghost" onClick={onDelete} style={{ marginLeft: 4, color: 'var(--red)' }}>🗑</Btn>

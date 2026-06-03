@@ -132,7 +132,7 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg,
       <thead>
         <tr style={{ borderBottom: '2px solid var(--border2)' }}>
           {headers.map((h, i) => (
-            <th key={i} style={{ padding: '6px 8px', textAlign: h === 'Valor' ? 'right' : h === '' ? 'right' : 'left', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+            <th key={i} style={{ padding: '6px 8px', paddingLeft: h === 'Pago' ? 24 : 8, textAlign: h === 'Valor' ? 'right' : h === '' ? 'right' : 'left', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -151,7 +151,7 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg,
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}
             </td>
             {showPago && (
-              <td style={{ padding: '9px 8px' }}>
+              <td style={{ padding: '9px 8px', paddingLeft: 24 }}>
                 <PagoCell pago={item.pago} onSave={p => onSavePago(item.id, p)} />
               </td>
             )}
