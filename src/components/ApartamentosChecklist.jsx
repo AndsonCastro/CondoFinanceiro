@@ -134,7 +134,7 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
 
           const tardio = pagamentos_tardios?.[key];
           const alertar = isDeadline && !status && !tardio;
-          const waLink = (!status && !tardio) ? buildWhatsAppLink(key) : null;
+          const waLink = (isDeadline && !status && !tardio) ? buildWhatsAppLink(key) : null;
 
           if (tardio) {
             const tag = `${MESES[tardio.mes_pago - 1]}/${String(tardio.ano_pago).slice(2)}`;
@@ -314,7 +314,7 @@ export default function ApartamentosChecklist({ pagamentos = {}, pagamentos_tard
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <MessageCircle size={13} color="#25D366" />
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Cobrar via WhatsApp (aparece em inadimplentes com telefone)</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Cobrar via WhatsApp (aparece a partir do dia 10 para inadimplentes com telefone)</span>
         </div>
       </div>
 
