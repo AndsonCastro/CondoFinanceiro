@@ -37,8 +37,49 @@ const AddItemForm = ({ categorias, onAdd, placeholder, accent }) => {
   );
 };
 
+// ─── CÉLULA PAGO ─────────────────────────────────────────────────────────────
+const PagoCell = ({ pago, onSave }) => {
+  const today = new Date().toISOString().split('T')[0];
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ data: today, tipo: 'debito' });
+
+  if (pago) {
+    const [yyyy, mm, dd] = pago.data.split('-');
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
+        <span style={{ color: 'var(--green)', fontWeight: 700, fontSize: 13 }}>✓</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{dd}/{mm}/{yyyy}</span>
+        <span style={{ fontSize: 10, background: pago.tipo === 'credito' ? 'rgba(99,102,241,0.18)' : 'rgba(16,185,129,0.18)', color: pago.tipo === 'credito' ? '#a5b4fc' : 'var(--green)', padding: '1px 5px', borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>
+          {pago.tipo === 'credito' ? 'Créd' : 'Déb'}
+        </span>
+        <button onClick={() => onSave(null)} title="Desmarcar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 12, padding: '0 2px', lineHeight: 1 }}>✕</button>
+      </div>
+    );
+  }
+
+  if (open) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
+        <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} style={{ width: 118, fontSize: 11 }} />
+        <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} style={{ fontSize: 11 }}>
+          <option value="debito">Débito</option>
+          <option value="credito">Crédito</option>
+        </select>
+        <button onClick={() => { if (form.data) { onSave({ ...form }); setOpen(false); } }} style={{ background: 'var(--green)', border: 'none', borderRadius: 4, color: '#000', cursor: 'pointer', padding: '2px 7px', fontWeight: 700, fontSize: 12 }}>✓</button>
+        <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 13 }}>✕</button>
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={() => setOpen(true)} style={{ background: 'none', border: '1px dashed var(--border2)', borderRadius: 4, color: 'var(--muted)', cursor: 'pointer', padding: '2px 8px', fontSize: 11, whiteSpace: 'nowrap' }}>
+      Pagar
+    </button>
+  );
+};
+
 // ─── TABELA ITENS ────────────────────────────────────────────────────────────
-const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg }) => {
+const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg, showPago, onSavePago }) => {
   if (!items?.length) return (
     <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--muted)', fontSize: 13 }}>{emptyMsg}</div>
   );
@@ -46,13 +87,14 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg 
   const tardios = items.filter(i => i._tardio);
   const outros = items.filter(i => !i._tardio);
   const tardioTotal = tardios.reduce((s, i) => s + i.valor, 0);
+  const headers = showPago ? ['Descrição','Categoria','Valor','Pago',''] : ['Descrição','Categoria','Valor',''];
 
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ borderBottom: '2px solid var(--border2)' }}>
-          {['Descrição','Categoria','Valor',''].map(h => (
-            <th key={h} style={{ padding: '6px 8px', textAlign: h === 'Valor' ? 'right' : h === '' ? 'right' : 'left', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+          {headers.map((h, i) => (
+            <th key={i} style={{ padding: '6px 8px', textAlign: h === 'Valor' ? 'right' : h === '' ? 'right' : 'left', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -70,6 +112,11 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg 
             <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: colorAccent, fontWeight: 700 }}>
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}
             </td>
+            {showPago && (
+              <td style={{ padding: '9px 8px' }}>
+                <PagoCell pago={item.pago} onSave={p => onSavePago(item.id, p)} />
+              </td>
+            )}
             <td style={{ padding: '9px 8px', textAlign: 'right' }}>
               <span style={{ fontSize: 10, color: 'var(--muted)' }}>via checklist</span>
             </td>
@@ -78,7 +125,8 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg 
           <EditableRow key={item.id} item={item} categorias={categorias}
             colorAccent={colorAccent}
             onSave={patch => onSave(item.id, patch)}
-            onDelete={() => onDelete(item.id)} />
+            onDelete={() => onDelete(item.id)}
+            extraCol={showPago ? <PagoCell pago={item.pago} onSave={p => onSavePago(item.id, p)} /> : undefined} />
         ))}
         {tardios.length > 0 && (
           <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(99,102,241,0.07)' }}>
@@ -94,6 +142,7 @@ const ItemTable = ({ items, onSave, onDelete, categorias, colorAccent, emptyMsg 
             <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: '#a5b4fc', fontWeight: 700 }}>
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tardioTotal)}
             </td>
+            {showPago && <td style={{ padding: '9px 8px' }} />}
             <td style={{ padding: '9px 8px', textAlign: 'right' }}>
               <span style={{ fontSize: 10, color: 'var(--muted)' }}>via inadimp.</span>
             </td>
@@ -499,6 +548,8 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
             emptyMsg="Nenhuma despesa registrada"
             onSave={(id, patch) => store.updateDespesa(ano, mes, id, patch)}
             onDelete={(id) => store.deleteDespesa(ano, mes, id)}
+            showPago
+            onSavePago={(id, pago) => store.updateDespesa(ano, mes, id, { pago })}
           />
           <div style={{ borderTop: '2px solid var(--border2)', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
             <span style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Total</span>

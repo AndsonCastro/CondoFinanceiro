@@ -100,11 +100,13 @@ export const Modal = ({ open, onClose, title, children, width = 500 }) => {
 };
 
 // ─── INLINE EDIT ROW ─────────────────────────────────────────────────────────
-export const EditableRow = ({ item, onSave, onDelete, categorias, colorAccent = 'var(--blue)' }) => {
+export const EditableRow = ({ item, onSave, onDelete, categorias, colorAccent = 'var(--blue)', extraCol }) => {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ descricao: item.descricao, categoria: item.categoria, valor: item.valor });
 
   const save = () => { onSave(form); setEditing(false); };
+
+  const hasExtra = extraCol !== undefined;
 
   if (editing) return (
     <tr style={{ background: 'var(--surface2)' }}>
@@ -120,6 +122,7 @@ export const EditableRow = ({ item, onSave, onDelete, categorias, colorAccent = 
         <input type="number" step="0.01" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: parseFloat(e.target.value) || 0 }))}
           style={{ width: '100%', textAlign: 'right' }} />
       </td>
+      {hasExtra && <td style={{ padding: '8px 6px' }} />}
       <td style={{ padding: '8px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
         <Btn size="sm" variant="success" onClick={save}>✓</Btn>
         <Btn size="sm" variant="ghost" onClick={() => setEditing(false)} style={{ marginLeft: 4 }}>✕</Btn>
@@ -138,6 +141,7 @@ export const EditableRow = ({ item, onSave, onDelete, categorias, colorAccent = 
       <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: colorAccent, fontWeight: 600 }}>
         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}
       </td>
+      {hasExtra && <td style={{ padding: '9px 8px' }}>{extraCol}</td>}
       <td style={{ padding: '9px 8px', textAlign: 'right', opacity: 0 }} className="row-actions">
         <Btn size="sm" variant="ghost" onClick={() => setEditing(true)}>✏</Btn>
         <Btn size="sm" variant="ghost" onClick={onDelete} style={{ marginLeft: 4, color: 'var(--red)' }}>🗑</Btn>
