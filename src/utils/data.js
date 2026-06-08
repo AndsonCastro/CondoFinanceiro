@@ -70,14 +70,17 @@ export const createMes = ({ mes, ano, saldo_inicial = 0 }) => ({
 });
 
 export const calcTotais = (mesData) => {
-  const totalReceitas = mesData.receitas.reduce((s, r) => s + (r.valor || 0), 0);
-  const totalDespesas = mesData.despesas.reduce((s, d) => s + (d.valor || 0), 0);
-  const movLiquido = totalReceitas - totalDespesas;
-  const saldoFinal = (mesData.saldo_inicial || 0) + movLiquido;
+  const totalReceitas      = mesData.receitas.reduce((s, r) => s + (r.valor || 0), 0);
+  const totalDespesas      = mesData.despesas.reduce((s, d) => s + (d.valor || 0), 0);
+  const totalDespesasPagas = mesData.despesas.filter(d => d.pago).reduce((s, d) => s + (d.valor || 0), 0);
+  const movLiquido         = totalReceitas - totalDespesas;            // projeção
+  const movLiquidoPago     = totalReceitas - totalDespesasPagas;      // realizado
+  const saldoFinal         = (mesData.saldo_inicial || 0) + movLiquido;       // projeção
+  const saldoFinalPago     = (mesData.saldo_inicial || 0) + movLiquidoPago;   // realizado
   const naoPago = mesData.pontualidade.total_unidades
     - mesData.pontualidade.pago_ate_dia10
     - mesData.pontualidade.pago_apos_dia10;
-  return { totalReceitas, totalDespesas, movLiquido, saldoFinal, naoPago };
+  return { totalReceitas, totalDespesas, totalDespesasPagas, movLiquido, movLiquidoPago, saldoFinal, saldoFinalPago, naoPago };
 };
 
 export const calcAnual = (meses) => {

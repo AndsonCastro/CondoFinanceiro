@@ -531,11 +531,15 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
         <KPI icon="🏦" label="Saldo Inicial" value={fmt(mesData.saldo_inicial)} color="var(--blue)" />
         <KPI icon="💰" label="Total Receitas" value={fmt(totais.totalReceitas)} color="var(--green)" />
-        <KPI icon="📤" label="Total Despesas" value={fmt(totais.totalDespesas)} color="var(--red)" />
-        <KPI icon="⚡" label="Mov. Líquido" value={fmt(totais.movLiquido)}
-          color={totais.movLiquido >= 0 ? 'var(--green)' : 'var(--red)'}
-          sub={totais.movLiquido >= 0 ? '✅ Superávit' : '⚠️ Déficit'} />
-        <KPI icon="🏦" label="Saldo Final" value={fmt(totais.saldoFinal)} color="var(--blue)" />
+        <KPI icon="📤" label="Despesas Pagas" value={fmt(totais.totalDespesasPagas)} color="var(--red)"
+          sub={totais.totalDespesasPagas < totais.totalDespesas ? `Projeção: ${fmt(totais.totalDespesas)}` : undefined} />
+        <KPI icon="⚡" label="Mov. Líquido" value={fmt(totais.movLiquidoPago)}
+          color={totais.movLiquidoPago >= 0 ? 'var(--green)' : 'var(--red)'}
+          sub={totais.totalDespesasPagas < totais.totalDespesas
+            ? `Projeção: ${fmt(totais.movLiquido)}`
+            : totais.movLiquidoPago >= 0 ? '✅ Superávit' : '⚠️ Déficit'} />
+        <KPI icon="🏦" label="Saldo Final" value={fmt(totais.saldoFinalPago)} color="var(--blue)"
+          sub={totais.totalDespesasPagas < totais.totalDespesas ? `Projeção: ${fmt(totais.saldoFinal)}` : undefined} />
       </div>
 
       {/* SALDO INICIAL (EDITÁVEL) */}
@@ -589,9 +593,17 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
             showPago
             onSavePago={(id, pago) => store.updateDespesa(ano, mes, id, { pago })}
           />
-          <div style={{ borderTop: '2px solid var(--border2)', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
-            <span style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Total</span>
-            <span style={{ color: 'var(--red)', fontSize: 16 }}>{fmt(totais.totalDespesas)}</span>
+          <div style={{ borderTop: '2px solid var(--border2)', marginTop: 10, paddingTop: 10, fontFamily: 'var(--font-mono)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800 }}>
+              <span style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Pago</span>
+              <span style={{ color: 'var(--red)', fontSize: 16 }}>{fmt(totais.totalDespesasPagas)}</span>
+            </div>
+            {totais.totalDespesasPagas < totais.totalDespesas && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <span style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Projeção</span>
+                <span style={{ color: 'var(--muted)', fontSize: 13 }}>{fmt(totais.totalDespesas)}</span>
+              </div>
+            )}
           </div>
           {/* Orçamento vs Realizado por categoria */}
           {Object.keys(store.data?.config?.orcamento || {}).length > 0 && (
