@@ -198,7 +198,6 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, isDia10, isAposDia
                 {status && (
                   <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: status === 'ate10' ? 'var(--green)' : 'var(--yellow)' }}>
                     {fmt(status === 'apos10' ? TAXA * 1.10 : TAXA)}
-                    {status === 'apos10' && <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>+10%</span>}
                   </span>
                 )}
               </div>
