@@ -191,7 +191,7 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, isDia10, isAposDia
                   )}
                   {!status && !tardio && isAposDia10 && (
                     <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>
-                      🚨 Em atraso — {fmt(TAXA * 1.10)} c/ 10%
+                      🚨 Em atraso — {fmt(TAXA * 1.10)}
                     </span>
                   )}
                 </div>
@@ -227,7 +227,7 @@ export default function ApartamentosChecklist({ pagamentos = {}, pagamentos_tard
   const TAXA = taxa;
   const hoje = new Date();
   const isMesAtual = hoje.getMonth() + 1 === mes && hoje.getFullYear() === ano;
-  const isDia10    = isMesAtual && hoje.getDate() === 10;
+  const isDia10     = isMesAtual && hoje.getDate() === 10;
   const isAposDia10 = isMesAtual && hoje.getDate() > 10;
   const isDeadline = isDia10 || isAposDia10;
 
