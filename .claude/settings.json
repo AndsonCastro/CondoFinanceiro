@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(Rename-Item -Path \"c:\\\\Projects\\\\condo-app\\\\start.bat\" -NewName \"CondoFinanceiro.bat\")"
+      "PowerShell(Rename-Item -Path \"c:\\\\Projects\\\\condo-app\\\\start.bat\" -NewName \"CondoFinanceiro.bat\")",
+      "PowerShell(cd \"c:\\\\Projects\\\\condo-app\"; $env:NODE_OPTIONS=\"--use-system-ca\"; $env:GENERATE_SOURCEMAP=\"false\"; npx vercel --prod 2>&1 | Select-Object -Last 5)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "PowerShell(cd \"c:\\\\Projects\\\\condo-app\"; $env:NODE_OPTIONS=\"--use-system-ca\"; npx vercel --prod 2>&1)",
+      "Bash(git push *)",
+      "Bash(node --use-system-ca \"C:\\\\Users\\\\andso\\\\AppData\\\\Roaming\\\\npm\\\\node_modules\\\\vercel\\\\dist\\\\index.js\" --prod --yes)",
+      "Bash(BROWSER=none npm start)",
+      "Bash(NODE_TLS_REJECT_UNAUTHORIZED=0 vercel --prod --force)"
     ]
   }
 }

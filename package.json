@@ -27,5 +27,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "classic-level": "^3.0.0",
+    "ws": "^8.21.0"
   }
 }

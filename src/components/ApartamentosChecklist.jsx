@@ -214,11 +214,10 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
 export default function ApartamentosChecklist({ pagamentos = {}, pagamentos_tardios = {}, onChange, contatos = {}, taxa = 50, mes, ano, nomeCondominio }) {
   const TAXA = taxa;
   const hoje = new Date();
-  const isDeadline = (
-    hoje.getDate() >= 10 &&
-    hoje.getMonth() + 1 === mes &&
-    hoje.getFullYear() === ano
-  );
+  const isMesAtual = hoje.getMonth() + 1 === mes && hoje.getFullYear() === ano;
+  const isDia10    = isMesAtual && hoje.getDate() === 10;
+  const isAposDia10 = isMesAtual && hoje.getDate() > 10;
+  const isDeadline = isDia10 || isAposDia10;
 
   const inabitaveis = useMemo(() =>
     new Set(Object.entries(contatos).filter(([, c]) => c.inabitavel).map(([k]) => k))
@@ -282,15 +281,35 @@ export default function ApartamentosChecklist({ pagamentos = {}, pagamentos_tard
         🏠 Controle de Taxa por Apartamento — R$ {TAXA.toFixed(2)}/unidade
       </SectionHeader>
 
-      {/* Alerta dia 10 */}
-      {isDeadline && stats.nao_pago > 0 && (
+      {/* Alerta dia 10 — último dia sem acréscimo */}
+      {isDia10 && stats.nao_pago > 0 && (
+        <div style={{
+          background: 'var(--yellow-dim)', border: '1px solid var(--yellow)',
+          borderRadius: 8, padding: '10px 16px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8,
+        }}>
+          <span style={{ color: 'var(--yellow)', fontWeight: 700, fontSize: 13 }}>
+            ⚠️ Hoje é o último dia para pagamento da taxa sem acréscimo! {stats.nao_pago} apartamento{stats.nao_pago > 1 ? 's' : ''} ainda não pagou{stats.nao_pago > 1 ? 'ram' : ''}. Após hoje será cobrada multa de 10%.
+          </span>
+          {inadimplentesComContato > 0 && (
+            <button onClick={handleCobrarTodos}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(234,179,8,0.15)', border: '1px solid var(--yellow)', color: 'var(--yellow)', borderRadius: 7, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+              <MessageCircle size={13} />
+              Cobrar todos via WhatsApp ({inadimplentesComContato})
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Alerta após dia 10 — com acréscimo */}
+      {isAposDia10 && stats.nao_pago > 0 && (
         <div style={{
           background: 'var(--red-dim)', border: '1px solid var(--red)',
           borderRadius: 8, padding: '10px 16px', marginBottom: 16,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8,
         }}>
           <span style={{ color: 'var(--red)', fontWeight: 700, fontSize: 13 }}>
-            ⚠️ Hoje é dia {hoje.getDate()} — prazo de vencimento! {stats.nao_pago} apartamento{stats.nao_pago > 1 ? 's' : ''} ainda não pagou{stats.nao_pago > 1 ? 'ram' : ''}.
+            🚨 Prazo encerrado! {stats.nao_pago} apartamento{stats.nao_pago > 1 ? 's' : ''} em atraso. O valor atualizado com 10% de acréscimo é {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(TAXA * 1.10)}.
           </span>
           {inadimplentesComContato > 0 && (
             <button onClick={handleCobrarTodos}
