@@ -62,7 +62,7 @@ const WhatsAppBtn = ({ href }) => (
 );
 
 // ─── CARD DE UM BLOCO ────────────────────────────────────────────────────────
-const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, mes, ano, nomeCondominio, pagamentos_tardios }) => {
+const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, isDia10, isAposDia10, contatos, taxa, mes, ano, nomeCondominio, pagamentos_tardios }) => {
   const TAXA = taxa;
   const aptos = APTOS.map(a => ({
     key: aptoKey(bloco, a),
@@ -177,15 +177,28 @@ const BlocoCard = ({ bloco, pagamentos, onToggle, isDeadline, contatos, taxa, me
                 ) : (
                   <Circle size={15} color={alertar ? 'var(--red)' : 'var(--muted)'} />
                 )}
-                <span style={{
-                  fontSize: 13, fontWeight: status ? 700 : 400,
-                  color: status ? 'var(--text)' : alertar ? 'var(--red)' : 'var(--muted)',
-                }}>
-                  {label}
-                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <span style={{
+                    fontSize: 13, fontWeight: status ? 700 : 400,
+                    color: status ? 'var(--text)' : alertar ? 'var(--red)' : 'var(--muted)',
+                  }}>
+                    {label}
+                  </span>
+                  {!status && !tardio && isDia10 && (
+                    <span style={{ fontSize: 10, color: 'var(--yellow)', fontWeight: 600 }}>
+                      ⚠️ Último dia sem acréscimo!
+                    </span>
+                  )}
+                  {!status && !tardio && isAposDia10 && (
+                    <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>
+                      🚨 Em atraso — {fmt(TAXA * 1.10)} c/ 10%
+                    </span>
+                  )}
+                </div>
                 {status && (
                   <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: status === 'ate10' ? 'var(--green)' : 'var(--yellow)' }}>
-                    {fmt(TAXA)}
+                    {fmt(status === 'apos10' ? TAXA * 1.10 : TAXA)}
+                    {status === 'apos10' && <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>+10%</span>}
                   </span>
                 )}
               </div>
@@ -369,6 +382,8 @@ export default function ApartamentosChecklist({ pagamentos = {}, pagamentos_tard
               pagamentos_tardios={pagamentos_tardios}
               onToggle={handleToggle}
               isDeadline={isDeadline}
+              isDia10={isDia10}
+              isAposDia10={isAposDia10}
               contatos={contatos}
               taxa={TAXA}
               mes={mes}
