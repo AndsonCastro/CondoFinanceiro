@@ -271,14 +271,17 @@ export default function useStore() {
     update(d => {
       if (!d.anos[anoAtual]?.meses?.[mesAtual]) return d;
       if (!d.anos[anoRef]?.meses?.[mesRef]) return d;
-      const taxa = d.config?.taxa_condominio || 50;
+      const taxaRef = getTaxaParaMes(anoRef, mesRef, d.config);
+      const vig = d.config?.taxa_vigencia;
+      const isNovaEra = vig ? (anoRef > vig.ano || (anoRef === vig.ano && mesRef >= vig.mes)) : false;
+      const valor = isNovaEra ? Math.round(taxaRef * 1.10 * 100) / 100 : taxaRef;
       const [, bloco, apNum] = apto.match(/^B(\d+)-(\d+)$/) || ['', apto, apto];
       const pad = n => String(n).padStart(2, '0');
       d.anos[anoAtual].meses[mesAtual].receitas.push({
         id: uid(),
         descricao: `Pg Bl ${bloco} Ap ${apNum} Mês ${pad(mesRef)}/${anoRef}`,
         categoria: 'Taxa de Condomínio',
-        valor: taxa,
+        valor,
         _tardio: true,
         _apto: apto,
         _mes_ref: mesRef,
