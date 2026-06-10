@@ -30,7 +30,7 @@ const StatusBtn = ({ label, color, bg, onClick, active, disabled }) => (
     disabled={disabled}
     title={label}
     style={{
-      width: 28, height: 28, borderRadius: 6, border: 'none',
+      minWidth: 28, height: 28, padding: '0 5px', borderRadius: 6, border: 'none',
       cursor: disabled ? 'not-allowed' : 'pointer',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: 12, fontWeight: 800, transition: 'all 0.15s',
