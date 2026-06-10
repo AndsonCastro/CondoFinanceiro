@@ -5,7 +5,11 @@ import { exportJSON, importJSON, CATEGORIAS_DESPESA, uid } from '../utils/data';
 import { exportarParaObsidian } from '../utils/obsidian';
 import { getAllAptos } from './ApartamentosChecklist';
 
-const TODOS_APTOS = getAllAptos();
+const TODOS_APTOS = getAllAptos().sort((a, b) => {
+  const [, bA, aA] = a.match(/^B(\d+)-(\d+)$/) || [];
+  const [, bB, aB] = b.match(/^B(\d+)-(\d+)$/) || [];
+  return parseInt(bA) - parseInt(bB) || parseInt(aA) - parseInt(aB);
+});
 
 export default function ConfigView({ config, updateConfig, data, importData, resetToSeed }) {
   const [form, setForm] = useState({ ...config });
@@ -14,7 +18,7 @@ export default function ConfigView({ config, updateConfig, data, importData, res
   const [contatosForm, setContatosForm] = useState(() => {
     const base = {};
     TODOS_APTOS.forEach(key => {
-      base[key] = { nome: '', tel1: '', tel2: '', proprietario: '', contato1: '', contato2: '', ...(config.contatos?.[key] || {}) };
+      base[key] = { nome: '', tel1: '', tel2: '', proprietario: '', contato1: '', contato2: '', inabitavel: false, isento: false, responsavel: false, vencimento: '', ...(config.contatos?.[key] || {}) };
     });
     return base;
   });
@@ -29,6 +33,7 @@ export default function ConfigView({ config, updateConfig, data, importData, res
   const { confirm, Dialog } = useConfirm();
   const [avisoMsg, setAvisoMsg] = useState(() => localStorage.getItem('condo_aviso_msg') || 'Olá! Passando para deixar um aviso importante sobre o condomínio.');
   const [avisoModal, setAvisoModal] = useState(null);
+  const [avisoTarget, setAvisoTarget] = useState('condomino'); // 'condomino' | 'proprietario'
 
   const updateContato = (key, field, value) => {
     setContatosForm(f => ({ ...f, [key]: { ...f[key], [field]: value } }));
@@ -64,15 +69,11 @@ export default function ConfigView({ config, updateConfig, data, importData, res
 
   const handleAvisoSend = () => {
     const row = contatosForm[avisoModal] || {};
-    const tel1 = (row.tel1 || '').replace(/\D/g, '');
-    const contato1 = (row.contato1 || '').replace(/\D/g, '');
+    const tel = avisoTarget === 'condomino'
+      ? (row.tel1 || '').replace(/\D/g, '')
+      : (row.contato1 || '').replace(/\D/g, '');
     localStorage.setItem('condo_aviso_msg', avisoMsg);
-    const enc = encodeURIComponent(avisoMsg);
-    let delay = 0;
-    [tel1, contato1].filter(Boolean).forEach(tel => {
-      setTimeout(() => window.open(`https://wa.me/55${tel}?text=${enc}`, '_blank'), delay);
-      delay += 400;
-    });
+    if (tel) window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(avisoMsg)}`, '_blank');
     setAvisoModal(null);
   };
 
@@ -130,9 +131,16 @@ export default function ConfigView({ config, updateConfig, data, importData, res
       {avisoModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 480, maxWidth: '90vw' }}>
-            <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Aviso via WhatsApp — {avisoModal}</h3>
+            <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>
+              Aviso via WhatsApp — {avisoModal} &nbsp;
+              <span style={{ fontSize: 11, fontWeight: 600, color: avisoTarget === 'condomino' ? 'var(--blue)' : 'var(--yellow)', background: avisoTarget === 'condomino' ? 'var(--surface2)' : 'rgba(234,179,8,0.1)', padding: '2px 8px', borderRadius: 20 }}>
+                {avisoTarget === 'condomino' ? 'Condômino' : 'Proprietário'}
+              </span>
+            </h3>
             <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
-              {[contatosForm[avisoModal]?.nome && `Condômino: ${contatosForm[avisoModal].nome}${contatosForm[avisoModal]?.tel1 ? ` (${contatosForm[avisoModal].tel1})` : ''}`, contatosForm[avisoModal]?.proprietario && `Proprietário: ${contatosForm[avisoModal].proprietario}${contatosForm[avisoModal]?.contato1 ? ` (${contatosForm[avisoModal].contato1})` : ''}`].filter(Boolean).join(' · ') || 'Nenhum contato com nome cadastrado.'}
+              {avisoTarget === 'condomino'
+                ? (contatosForm[avisoModal]?.nome ? `${contatosForm[avisoModal].nome} · Tel: ${contatosForm[avisoModal].tel1 || '—'}` : 'Sem nome cadastrado.')
+                : (contatosForm[avisoModal]?.proprietario ? `${contatosForm[avisoModal].proprietario} · Contato: ${contatosForm[avisoModal].contato1 || '—'}` : 'Sem proprietário cadastrado.')}
             </p>
             <textarea
               value={avisoMsg}
@@ -142,7 +150,7 @@ export default function ConfigView({ config, updateConfig, data, importData, res
             />
             <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
               <button onClick={() => setAvisoModal(null)} style={{ padding: '8px 16px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
-              <button onClick={handleAvisoSend} disabled={!contatosForm[avisoModal]?.tel1 && !contatosForm[avisoModal]?.contato1} style={{ padding: '8px 16px', background: '#1a3a1a', border: '1px solid #25D366', borderRadius: 7, color: '#25D366', cursor: 'pointer', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button onClick={handleAvisoSend} disabled={avisoTarget === 'condomino' ? !contatosForm[avisoModal]?.tel1 : !contatosForm[avisoModal]?.contato1} style={{ padding: '8px 16px', background: '#1a3a1a', border: '1px solid #25D366', borderRadius: 7, color: '#25D366', cursor: 'pointer', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <MessageCircle size={14} /> Enviar
               </button>
             </div>
@@ -301,37 +309,54 @@ export default function ConfigView({ config, updateConfig, data, importData, res
           style={{ width: '100%', marginBottom: 12 }}
         />
         <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 1020 }}>
+          <div style={{ minWidth: 1240 }}>
             {/* Cabeçalho */}
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 110px 110px 1fr 110px 110px 80px 80px 46px', gap: 6, padding: '4px 8px 8px', marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 120px 120px 36px 1fr 120px 120px 36px 75px 65px 55px 85px', gap: 6, padding: '4px 8px 8px', marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Apto</span>
               <span style={{ fontSize: 10, color: 'var(--blue)', fontWeight: 700, letterSpacing: 1 }}>— CONDÔMINO —</span>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Telefone 1</span>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Telefone 2</span>
+              <span style={{ fontSize: 10, color: '#25D366', fontWeight: 700, letterSpacing: 1, textAlign: 'center' }}>WPP</span>
               <span style={{ fontSize: 10, color: 'var(--yellow)', fontWeight: 700, letterSpacing: 1 }}>— PROPRIETÁRIO —</span>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Contato 1</span>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Contato 2</span>
-              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Inabitável</span>
+              <span style={{ fontSize: 10, color: '#25D366', fontWeight: 700, letterSpacing: 1, textAlign: 'center' }}>WPP</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Inabit.</span>
               <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Isento</span>
-              <span style={{ fontSize: 10, color: '#25D366', fontWeight: 700, letterSpacing: 1, textAlign: 'center' }}>AVISO</span>
+              <span style={{ fontSize: 10, color: 'var(--blue)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Venc.</span>
+              <span style={{ fontSize: 10, color: 'var(--yellow)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Responsável</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {TODOS_APTOS.filter(key => key.toLowerCase().includes(filtroApto.toLowerCase())).map(key => {
                 const inabitavel = contatosForm[key]?.inabitavel || false;
                 const isento = contatosForm[key]?.isento || false;
+                const responsavel = contatosForm[key]?.responsavel || false;
                 const row = contatosForm[key] || {};
                 const disabled = inabitavel || isento;
                 const rowBg = inabitavel ? 'rgba(255,77,109,0.07)' : isento ? 'rgba(16,217,150,0.05)' : 'var(--surface2)';
                 const keyColor = inabitavel ? 'var(--red)' : isento ? 'var(--green)' : 'var(--muted)';
+                const wppBtn = (hasPhone, target) => hasPhone && !inabitavel ? (
+                  <button
+                    onClick={() => { setAvisoTarget(target); setAvisoModal(key); }}
+                    title={`Enviar aviso para ${target === 'condomino' ? 'Condômino' : 'Proprietário'}`}
+                    style={{ width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a3a1a', color: '#25D366', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#25D36633'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#1a3a1a'; }}
+                  >
+                    <MessageCircle size={13} />
+                  </button>
+                ) : null;
                 return (
-                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 110px 110px 1fr 110px 110px 80px 80px 46px', gap: 6, alignItems: 'center', padding: '4px 8px', borderRadius: 8, background: rowBg, opacity: disabled ? 0.7 : 1 }}>
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 120px 120px 36px 1fr 120px 120px 36px 75px 65px 55px 85px', gap: 6, alignItems: 'center', padding: '4px 8px', borderRadius: 8, background: rowBg, opacity: disabled ? 0.7 : 1 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: keyColor, fontFamily: 'var(--font-mono)' }}>{key}</span>
                     <input value={row.nome || ''} onChange={e => updateContato(key, 'nome', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', opacity: disabled ? 0.4 : 1 }} />
                     <input value={row.tel1 || ''} onChange={e => updateContato(key, 'tel1', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: disabled ? 0.4 : 1 }} />
                     <input placeholder="Opcional" value={row.tel2 || ''} onChange={e => updateContato(key, 'tel2', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: disabled ? 0.4 : 1 }} />
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>{wppBtn(!!row.tel1, 'condomino')}</div>
                     <input value={row.proprietario || ''} onChange={e => updateContato(key, 'proprietario', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', opacity: disabled ? 0.4 : 1 }} />
                     <input value={row.contato1 || ''} onChange={e => updateContato(key, 'contato1', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: disabled ? 0.4 : 1 }} />
                     <input placeholder="Opcional" value={row.contato2 || ''} onChange={e => updateContato(key, 'contato2', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: disabled ? 0.4 : 1 }} />
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>{wppBtn(!!row.contato1, 'proprietario')}</div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={inabitavel} onChange={e => updateContato(key, 'inabitavel', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--red)' }} />
                     </div>
@@ -339,17 +364,18 @@ export default function ConfigView({ config, updateConfig, data, importData, res
                       <input type="checkbox" checked={isento} onChange={e => updateContato(key, 'isento', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--green)' }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      {(row.tel1 || row.contato1) && !inabitavel && (
-                        <button
-                          onClick={() => setAvisoModal(key)}
-                          title="Enviar aviso personalizado via WhatsApp"
-                          style={{ width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a3a1a', color: '#25D366', transition: 'all 0.15s' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = '#25D36633'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = '#1a3a1a'; }}
-                        >
-                          <MessageCircle size={13} />
-                        </button>
-                      )}
+                      <input
+                        type="number" min="1" max="30"
+                        value={row.vencimento || ''}
+                        onChange={e => updateContato(key, 'vencimento', e.target.value)}
+                        placeholder="10"
+                        disabled={disabled}
+                        title="Dia do vencimento (padrão: 10)"
+                        style={{ width: 46, fontSize: 12, padding: '5px 6px', textAlign: 'center', opacity: disabled ? 0.4 : 1 }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <input type="checkbox" checked={responsavel} onChange={e => updateContato(key, 'responsavel', e.target.checked)} disabled={!row.proprietario || !row.contato1} title="Proprietário é o responsável pelo pagamento da taxa" style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--yellow)', opacity: (!row.proprietario || !row.contato1) ? 0.3 : 1 }} />
                     </div>
                   </div>
                 );

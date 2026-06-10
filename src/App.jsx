@@ -186,7 +186,12 @@ function Sidebar({ store, nav, setNav, open, onClose }) {
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.color = 'var(--muted)'; }}>
             <FolderOpen size={12} /> Carregar
           </button>
-          <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleLoad} />
+          <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            importJSON(file, (imported) => { store.importData(imported); setSaveMsg('Carregado!'); setTimeout(() => setSaveMsg(''), 2000); }, () => setSaveMsg('Erro ao carregar'));
+            e.target.value = '';
+          }} />
         </div>
       </div>
 

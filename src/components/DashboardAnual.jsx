@@ -3,7 +3,9 @@ import {
   BarChart, Bar, AreaChart, Area, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend
 } from 'recharts';
-import { calcTotais, calcAnual, fmt, fmtShort, MESES, PONTUALIDADE_TOTAL_UNIDADES } from '../utils/data';
+import { calcTotais, calcAnual, fmt, fmtShort, MESES, MESES_FULL, PONTUALIDADE_TOTAL_UNIDADES } from '../utils/data';
+import { isAdiantadoParaMes } from '../hooks/useStore';
+import { getAllAptos } from './ApartamentosChecklist';
 import { Card, KPI, SectionHeader, Badge } from './UI';
 import { gerarRelatorioAnualPDF } from '../utils/pdf';
 import { FileDown, Loader } from 'lucide-react';
@@ -55,6 +57,20 @@ export default function DashboardAnual({ meses, ano, config }) {
     }
   };
   const totais = useMemo(() => calcAnual(meses), [meses]);
+
+  const pontualidadeMedia = useMemo(() => {
+    const total = meses.reduce((s, m) => s + (m.pontualidade?.total_unidades || 0), 0);
+    const pontuais = meses.reduce((s, m) => s + (m.pontualidade?.pago_ate_dia10 || 0), 0);
+    return total > 0 ? Math.round((pontuais / total) * 100) : 0;
+  }, [meses]);
+
+  const adiantamentosAtivos = useMemo(() => {
+    const adts = config?.adiantamentos || [];
+    const aptos = getAllAptos();
+    return aptos.filter(apto =>
+      meses.some(m => isAdiantadoParaMes(apto, m.ano, m.mes, adts))
+    ).length;
+  }, [meses, config]);
 
   const chartData = useMemo(() =>
     meses.map(m => {
@@ -159,6 +175,13 @@ export default function DashboardAnual({ meses, ano, config }) {
           color={totais.movLiquido >= 0 ? 'var(--green)' : 'var(--red)'}
           sub={totais.movLiquido >= 0 ? '✅ Superávit' : '⚠️ Déficit'} />
         <KPI icon="🏦" label="Saldo Final" value={fmt(totais.saldoFinal)} color="var(--blue)" />
+        <KPI icon="📅" label="Pontualidade Média" value={`${pontualidadeMedia}%`}
+          color={pontualidadeMedia >= 80 ? 'var(--green)' : pontualidadeMedia >= 50 ? 'var(--yellow)' : 'var(--red)'}
+          sub="Pagtos ≤10 no ano" />
+        {adiantamentosAtivos > 0 && (
+          <KPI icon="💳" label="Adiantamentos Ativos" value={adiantamentosAtivos}
+            color="#2dd4bf" sub="APs com ADT vigente" />
+        )}
       </div>
 
       {/* Fundo de Reserva */}
@@ -187,6 +210,27 @@ export default function DashboardAnual({ meses, ano, config }) {
                   : `Faltam ${fmt(config.fundo_reserva_meta - totais.saldoFinal)} para a meta (${((totais.saldoFinal / config.fundo_reserva_meta) * 100).toFixed(1)}%)`}
               </div>
             </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Adiantamentos Ativos */}
+      {(config?.adiantamentos || []).length > 0 && (
+        <Card style={{ marginBottom: 16 }}>
+          <SectionHeader>💳 Adiantamentos Ativos</SectionHeader>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(config.adiantamentos).map(adt => {
+              const mesExpAbs = adt.ano_origem * 12 + adt.mes_origem + adt.qtd_meses;
+              const mesExp = ((mesExpAbs - 1) % 12) + 1;
+              const anoExp = Math.floor((mesExpAbs - 1) / 12);
+              return (
+                <div key={adt.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: 'rgba(20,184,166,0.06)', borderRadius: 8, border: '1px solid rgba(20,184,166,0.2)' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, color: '#2dd4bf', minWidth: 80 }}>{adt.apto}</span>
+                  <span style={{ fontSize: 12, color: 'var(--muted)', flex: 1 }}>{adt.qtd_meses} {adt.qtd_meses === 1 ? 'mês' : 'meses'} adiantado{adt.qtd_meses > 1 ? 's' : ''}</span>
+                  <span style={{ fontSize: 12, color: '#2dd4bf', fontWeight: 700 }}>expira {MESES_FULL[mesExp - 1]}/{anoExp}</span>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}

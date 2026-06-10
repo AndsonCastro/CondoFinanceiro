@@ -1,6 +1,11 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { fmt, MESES_FULL, MESES, calcTotais, calcAnual, PONTUALIDADE_TOTAL_UNIDADES } from './data';
+import { isAdiantadoParaMes } from '../hooks/useStore';
+
+const BLOCOS_ALL = [1, 3, 5, 7, 2, 4, 6, 8];
+const APTOS_ALL  = ['101', '102', '201', '202'];
+const getAllAptosLocal = () => BLOCOS_ALL.flatMap(b => APTOS_ALL.map(a => `B${b}-${a}`));
 
 const COR_VERDE  = [16, 217, 150];
 const COR_VERM   = [255, 77, 109];
@@ -16,7 +21,12 @@ export const gerarRelatorioPDF = (mesData, config) => {
   const inabitavelCount = Object.values(config?.contatos || {}).filter(c => c.inabitavel).length;
   const isentoCount = Object.values(config?.contatos || {}).filter(c => c.isento).length;
   const totalUnidades = PONTUALIDADE_TOTAL_UNIDADES - inabitavelCount - isentoCount;
-  const naoPago = totalUnidades - mesData.pontualidade.pago_ate_dia10 - mesData.pontualidade.pago_apos_dia10;
+  const adiantadosCount = getAllAptosLocal().filter(k => {
+    const c = config?.contatos?.[k] || {};
+    if (c.inabitavel || c.isento) return false;
+    return isAdiantadoParaMes(k, mesData.ano, mesData.mes, config?.adiantamentos || []);
+  }).length;
+  const naoPago = Math.max(totalUnidades - mesData.pontualidade.pago_ate_dia10 - mesData.pontualidade.pago_apos_dia10 - adiantadosCount, 0);
 
   // ── Cabeçalho ──────────────────────────────────────────────────────────────
   doc.setFillColor(...COR_HEADER);
@@ -113,7 +123,8 @@ export const gerarRelatorioPDF = (mesData, config) => {
     const bodyPont = [
       ['Pago até dia 10', pont.pago_ate_dia10, pct(pont.pago_ate_dia10)],
       ['Pago após dia 10', pont.pago_apos_dia10, pct(pont.pago_apos_dia10)],
-      ['Não pago', Math.max(naoPago, 0), pct(Math.max(naoPago, 0))],
+      ...(adiantadosCount > 0 ? [['Adiantados', adiantadosCount, pct(adiantadosCount)]] : []),
+      ['Não pago', naoPago, pct(naoPago)],
       ...(isentoCount > 0 ? [['Isento', isentoCount, '—']] : []),
     ];
     autoTable(doc, {

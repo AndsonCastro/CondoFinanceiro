@@ -9,8 +9,42 @@ const EMPTY_DATA = {
     fundo_reserva_meta: 0,
     orcamento: {},
     despesas_recorrentes: [],
+    adiantamentos: [],
   },
   anos: {},
+};
+
+const mesAbs = (ano, mes) => ano * 12 + mes;
+// Adiantamento cobre apenas os meses APÓS o mês de origem (o mês atual fica no checklist normal)
+export const isAdiantadoParaMes = (apto, ano, mes, adiantamentos) =>
+  (adiantamentos || []).some(a =>
+    a.apto === apto &&
+    mesAbs(ano, mes) > mesAbs(a.ano_origem, a.mes_origem) &&
+    mesAbs(ano, mes) <= mesAbs(a.ano_origem, a.mes_origem) + a.qtd_meses
+  );
+
+const calcValorTardio = (anoRef, mesRef, config) => {
+  const vig = config?.taxa_vigencia;
+  const taxaAnterior = config?.taxa_anterior ?? config?.taxa_condominio ?? 50;
+  const taxaAtual = config?.taxa_condominio ?? 50;
+  // +10% apenas para meses ESTRITAMENTE APÓS a vigência (mês da vigência ainda usa taxa anterior)
+  const isNovaEra = vig
+    ? (anoRef > vig.ano || (anoRef === vig.ano && mesRef > vig.mes))
+    : false;
+  return isNovaEra ? Math.round(taxaAtual * 1.10 * 100) / 100 : taxaAnterior;
+};
+
+const migrateTardioValues = (data) => {
+  for (const anoData of Object.values(data.anos || {})) {
+    for (const mesData of Object.values(anoData.meses || {})) {
+      for (const r of mesData.receitas || []) {
+        if (r._tardio && r._ano_ref != null && r._mes_ref != null) {
+          r.valor = calcValorTardio(r._ano_ref, r._mes_ref, data.config);
+        }
+      }
+    }
+  }
+  return data;
 };
 
 const deepMerge = (target, source) => {
@@ -29,7 +63,26 @@ export default function useStore() {
   const [data, setData] = useState(() => {
     const stored = loadData();
     if (!stored.anos || Object.keys(stored.anos).length === 0) return EMPTY_DATA;
-    return stored;
+    // Migra adiantamentos v1 (qtd_meses incluía mês de origem) → v2 (apenas meses futuros)
+    for (const adt of stored.config?.adiantamentos || []) {
+      if (!adt._v2 && adt.qtd_meses > 0) {
+        adt.qtd_meses -= 1;
+        adt._v2 = true;
+        // Corrige também a receita vinculada (valor e descrição)
+        const q = adt.qtd_meses;
+        for (const anoData of Object.values(stored.anos || {})) {
+          for (const mesData of Object.values(anoData.meses || {})) {
+            for (const r of mesData.receitas || []) {
+              if (r._adt_id === adt.id) {
+                r.descricao = `Adiantamento (${q} ${q === 1 ? 'mês' : 'meses'})`;
+                r.valor = Math.round(q * adt.taxa * 100) / 100;
+              }
+            }
+          }
+        }
+      }
+    }
+    return migrateTardioValues(stored);
   });
 
   // Persiste automaticamente
@@ -231,10 +284,12 @@ export default function useStore() {
       // 1. Salva o mapa de pagamentos
       d.anos[ano].meses[mes].pagamentos_aptos = pagamentos;
 
-      // 2. Recalcula pontualidade
+      // 2. Recalcula pontualidade (exclui adiantados — já contabilizados em receita separada)
+      const adts = d.config?.adiantamentos || [];
       let pago_ate_dia10 = 0;
       let pago_apos_dia10 = 0;
-      Object.values(pagamentos).forEach(status => {
+      Object.entries(pagamentos).forEach(([key, status]) => {
+        if (isAdiantadoParaMes(key, ano, mes, adts)) return;
         if (status === 'ate10')  pago_ate_dia10++;
         if (status === 'apos10') pago_apos_dia10++;
       });
@@ -271,10 +326,7 @@ export default function useStore() {
     update(d => {
       if (!d.anos[anoAtual]?.meses?.[mesAtual]) return d;
       if (!d.anos[anoRef]?.meses?.[mesRef]) return d;
-      const taxaRef = getTaxaParaMes(anoRef, mesRef, d.config);
-      const vig = d.config?.taxa_vigencia;
-      const isNovaEra = vig ? (anoRef > vig.ano || (anoRef === vig.ano && mesRef >= vig.mes)) : false;
-      const valor = isNovaEra ? Math.round(taxaRef * 1.10 * 100) / 100 : taxaRef;
+      const valor = calcValorTardio(anoRef, mesRef, d.config);
       const [, bloco, apNum] = apto.match(/^B(\d+)-(\d+)$/) || ['', apto, apto];
       const pad = n => String(n).padStart(2, '0');
       d.anos[anoAtual].meses[mesAtual].receitas.push({
@@ -308,6 +360,82 @@ export default function useStore() {
     });
   }, [update]);
 
+  // ─── PAGAMENTOS ADIANTADOS ───────────────────────────────────────────────────
+  const registrarAdiantamento = useCallback((anoAtual, mesAtual, apto, qtdMeses) => {
+    // qtdMeses = meses ADIANTADOS (não inclui o mês atual)
+    update(d => {
+      if (!d.anos[anoAtual]?.meses?.[mesAtual]) return d;
+      const taxa = getTaxaParaMes(anoAtual, mesAtual, d.config);
+      const receitaId = uid();
+      const adtId = uid();
+
+      // 1. Auto-marca o mês atual como pago (≤10 ou >10 conforme o dia)
+      const diaHoje = new Date().getDate();
+      const venc = parseInt(d.config?.contatos?.[apto]?.vencimento) || 10;
+      const statusPago = diaHoje <= venc ? 'ate10' : 'apos10';
+      if (!d.anos[anoAtual].meses[mesAtual].pagamentos_aptos)
+        d.anos[anoAtual].meses[mesAtual].pagamentos_aptos = {};
+      d.anos[anoAtual].meses[mesAtual].pagamentos_aptos[apto] = statusPago;
+
+      // 2. Recalcula checklist receipt para incluir o mês atual
+      const pagamentos = d.anos[anoAtual].meses[mesAtual].pagamentos_aptos;
+      const adtsSnap = d.config?.adiantamentos || [];
+      let pago_ate = 0;
+      let pago_apos = 0;
+      Object.entries(pagamentos).forEach(([key, s]) => {
+        if (isAdiantadoParaMes(key, anoAtual, mesAtual, adtsSnap)) return;
+        if (s === 'ate10') pago_ate++;
+        if (s === 'apos10') pago_apos++;
+      });
+      const excluidos = Object.values(d.config?.contatos || {}).filter(c => c.inabitavel || c.isento).length;
+      d.anos[anoAtual].meses[mesAtual].pontualidade = { total_unidades: PONTUALIDADE_TOTAL_UNIDADES - excluidos, pago_ate_dia10: pago_ate, pago_apos_dia10: pago_apos };
+      const totalPagos = pago_ate + pago_apos;
+      const valorTaxa = totalPagos * taxa;
+      const receitas = d.anos[anoAtual].meses[mesAtual].receitas;
+      const idxChecklist = receitas.findIndex(r => r.id === ID_TAXA_CHECKLIST);
+      if (totalPagos === 0) {
+        d.anos[anoAtual].meses[mesAtual].receitas = receitas.filter(r => r.id !== ID_TAXA_CHECKLIST);
+      } else if (idxChecklist >= 0) {
+        receitas[idxChecklist].valor = valorTaxa;
+      } else {
+        receitas.unshift({ id: ID_TAXA_CHECKLIST, descricao: 'Taxa de Condomínio', categoria: 'Taxa de Condomínio', valor: valorTaxa, _auto: true });
+      }
+
+      // 3. Receita de adiantamento — somente os meses futuros (sem bloco/ap na descrição)
+      const valorAdiantamento = Math.round(qtdMeses * taxa * 100) / 100;
+      d.anos[anoAtual].meses[mesAtual].receitas.push({
+        id: receitaId,
+        descricao: `Adiantamento (${qtdMeses} ${qtdMeses === 1 ? 'mês' : 'meses'})`,
+        categoria: 'Taxa de Condomínio',
+        valor: valorAdiantamento,
+        _adiantado: true,
+        _apto: apto,
+        _adt_id: adtId,
+      });
+
+      if (!d.config.adiantamentos) d.config.adiantamentos = [];
+      d.config.adiantamentos.push({ id: adtId, receita_id: receitaId, apto, mes_origem: mesAtual, ano_origem: anoAtual, qtd_meses: qtdMeses, taxa, _v2: true });
+
+      return d;
+    });
+  }, [update]);
+
+  const desfazerAdiantamento = useCallback((adtId) => {
+    update(d => {
+      const adts = d.config?.adiantamentos || [];
+      const adt = adts.find(a => a.id === adtId);
+      if (!adt) return d;
+
+      // Remove receita
+      const mesData = d.anos[adt.ano_origem]?.meses?.[adt.mes_origem];
+      if (mesData) mesData.receitas = mesData.receitas.filter(r => r._adt_id !== adtId);
+
+      // Remove do config
+      d.config.adiantamentos = adts.filter(a => a.id !== adtId);
+      return d;
+    });
+  }, [update]);
+
   // ─── NOTAS ──────────────────────────────────────────────────────────────────
   const updateNotas = useCallback((ano, mes, notas) => {
     update(d => { d.anos[ano].meses[mes].notas = notas; return d; });
@@ -331,6 +459,7 @@ export default function useStore() {
     addPendencia, togglePendencia, deletePendencia,
     updatePontualidade, updatePagamentosAptos, updateNotas,
     registrarPagamentoTardio, desfazerPagamentoTardio,
+    registrarAdiantamento, desfazerAdiantamento,
     importData, resetToSeed,
   };
 }

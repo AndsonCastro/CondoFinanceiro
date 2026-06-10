@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, CheckCircle2, Trash2, FileText, FileDown, Clock } from 'lucide-react';
 import { MESES, MESES_FULL, CATEGORIAS_RECEITA, CATEGORIAS_DESPESA, calcTotais, fmt, exportCSV, PONTUALIDADE_TOTAL_UNIDADES } from '../utils/data';
 import { getAllAptos } from './ApartamentosChecklist';
+import { isAdiantadoParaMes } from '../hooks/useStore';
 import { gerarRelatorioPDF } from '../utils/pdf';
 import { Card, Btn, KPI, Modal, SectionHeader, EditableRow, Badge, ProgressBar, useConfirm } from './UI';
 import ApartamentosChecklist from './ApartamentosChecklist';
@@ -265,9 +266,13 @@ const PendenciasSection = ({ pendencias, onAdd, onToggle, onDelete }) => {
 };
 
 // ─── PONTUALIDADE (somente visualização — controlada pelo checklist) ──────────
-const PontualidadeResumo = ({ pont }) => {
+const PontualidadeResumo = ({ pont, adiantamentos, ano, mes, contatos }) => {
   const total = pont.total_unidades || PONTUALIDADE_TOTAL_UNIDADES;
-  const naoPago = Math.max(total - pont.pago_ate_dia10 - pont.pago_apos_dia10, 0);
+  const adiantados = getAllAptos().filter(k => {
+    if (contatos?.[k]?.inabitavel || contatos?.[k]?.isento) return false;
+    return isAdiantadoParaMes(k, ano, mes, adiantamentos || []);
+  }).length;
+  const naoPago = Math.max(total - pont.pago_ate_dia10 - pont.pago_apos_dia10 - adiantados, 0);
   return (
     <Card style={{ marginTop: 16 }}>
       <SectionHeader>🏷 Resumo de Pontualidade</SectionHeader>
@@ -279,6 +284,7 @@ const PontualidadeResumo = ({ pont }) => {
           { label: 'Total Unidades', value: total, color: 'var(--blue)' },
           { label: 'Pago até dia 10', value: pont.pago_ate_dia10, color: 'var(--green)' },
           { label: 'Pago após dia 10', value: pont.pago_apos_dia10, color: 'var(--yellow)' },
+          ...(adiantados > 0 ? [{ label: 'Adiantados', value: adiantados, color: '#2dd4bf' }] : []),
           { label: 'Não pago', value: naoPago, color: naoPago > 0 ? 'var(--red)' : 'var(--muted)' },
         ].map(({ label, value, color }) => (
           <div key={label}>
@@ -295,6 +301,11 @@ const PontualidadeResumo = ({ pont }) => {
           <ProgressBar value={pont.pago_apos_dia10} max={total} color="var(--yellow)"
             label={`⏰ Pago após dia 10 (${((pont.pago_apos_dia10 / total) * 100).toFixed(1)}%)`}
             sub={`${pont.pago_apos_dia10}/${total}`} />
+        )}
+        {adiantados > 0 && (
+          <ProgressBar value={adiantados} max={total} color="#2dd4bf"
+            label={`💳 Adiantados (${((adiantados / total) * 100).toFixed(1)}%)`}
+            sub={`${adiantados}/${total}`} />
         )}
         {naoPago > 0 && (
           <ProgressBar value={naoPago} max={total} color="var(--red)"
@@ -490,6 +501,22 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
   const { confirm, Dialog } = useConfirm();
   const totais = calcTotais(mesData);
 
+  // Receita esperada vs realizada
+  const inabitaveis = Object.values(store.data?.config?.contatos || {}).filter(c => c.inabitavel || c.isento).length;
+  const taxaAtual = store.data?.config?.taxa_condominio || 50;
+  const unidadesAtivas = PONTUALIDADE_TOTAL_UNIDADES - inabitaveis;
+  const receitaEsperada = unidadesAtivas * taxaAtual;
+  const pctReceita = receitaEsperada > 0 ? Math.round((totais.totalReceitas / receitaEsperada) * 100) : 0;
+
+  // Comparativo com mês anterior
+  const mesAnteriorData = (() => {
+    const prevMes = mes - 1;
+    const prevAno = prevMes < 1 ? ano - 1 : ano;
+    const prevMesNum = prevMes < 1 ? 12 : prevMes;
+    return store.getMes(prevAno, prevMesNum);
+  })();
+  const totaisAnt = mesAnteriorData ? calcTotais(mesAnteriorData) : null;
+
   const handleDeleteMes = async () => {
     const ok = await confirm('Tem certeza que deseja excluir todos os dados deste mês?');
     if (ok) {
@@ -555,6 +582,54 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
           <span style={{ color: 'var(--muted)', fontSize: 12 }}>Edite apenas se o saldo não foi carregado automaticamente.</span>
         </div>
       </Card>
+
+      {/* RECEITA ESPERADA VS REALIZADA + COMPARATIVO */}
+      <div style={{ display: 'grid', gridTemplateColumns: totaisAnt ? '1fr 1fr' : '1fr', gap: 16, marginBottom: 16 }}>
+        <Card>
+          <SectionHeader>📊 Receita Esperada vs Realizada</SectionHeader>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Esperada ({unidadesAtivas} unid.)</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{fmt(receitaEsperada)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Realizada</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: totais.totalReceitas >= receitaEsperada ? 'var(--green)' : 'var(--yellow)', fontFamily: 'var(--font-mono)' }}>{fmt(totais.totalReceitas)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Cobertura</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: pctReceita >= 100 ? 'var(--green)' : pctReceita >= 75 ? 'var(--yellow)' : 'var(--red)', fontFamily: 'var(--font-mono)' }}>{pctReceita}%</div>
+            </div>
+          </div>
+          <div style={{ height: 8, background: 'var(--surface2)', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${Math.min(pctReceita, 100)}%`, background: pctReceita >= 100 ? 'var(--green)' : pctReceita >= 75 ? 'var(--yellow)' : 'var(--red)', borderRadius: 6, transition: 'width 0.3s' }} />
+          </div>
+        </Card>
+        {totaisAnt && (
+          <Card>
+            <SectionHeader>↔ Comparativo com {MESES_FULL[mesAnteriorData.mes - 1]}</SectionHeader>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { label: 'Receitas', curr: totais.totalReceitas, prev: totaisAnt.totalReceitas, color: 'var(--green)' },
+                { label: 'Despesas', curr: totais.totalDespesas, prev: totaisAnt.totalDespesas, color: 'var(--red)' },
+                { label: 'Saldo Final', curr: totais.saldoFinal, prev: totaisAnt.saldoFinal, color: 'var(--blue)' },
+              ].map(({ label, curr, prev, color }) => {
+                const delta = curr - prev;
+                const sign = delta >= 0 ? '+' : '';
+                return (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', minWidth: 80 }}>{label}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color }}>{fmt(curr)}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: delta >= 0 ? 'var(--green)' : 'var(--red)', minWidth: 90, textAlign: 'right' }}>
+                      {sign}{fmt(delta)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+      </div>
 
       {/* RECEITAS + DESPESAS */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -638,7 +713,13 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
       </div>
 
       {/* RESUMO DE PONTUALIDADE */}
-      <PontualidadeResumo pont={mesData.pontualidade} />
+      <PontualidadeResumo
+        pont={mesData.pontualidade}
+        adiantamentos={store.data?.config?.adiantamentos || []}
+        ano={ano}
+        mes={mes}
+        contatos={store.data?.config?.contatos || {}}
+      />
 
       {/* CHECKLIST DE APARTAMENTOS */}
       <ApartamentosChecklist
@@ -650,6 +731,9 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
         mes={mes}
         ano={ano}
         nomeCondominio={store.data?.config?.nome_condominio}
+        adiantamentos={store.data?.config?.adiantamentos || []}
+        onAdiantar={(apto, qtd) => store.registrarAdiantamento(ano, mes, apto, qtd)}
+        onDesfazerAdiantamento={store.desfazerAdiantamento}
       />
 
       {/* PENDÊNCIAS */}
