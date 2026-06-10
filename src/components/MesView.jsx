@@ -502,9 +502,15 @@ export default function MesView({ mesData, ano, mes, store, onDeleted }) {
   const totais = calcTotais(mesData);
 
   // Receita esperada vs realizada
-  const inabitaveis = Object.values(store.data?.config?.contatos || {}).filter(c => c.inabitavel || c.isento).length;
+  const contatosMap = store.data?.config?.contatos || {};
+  const adiantamentosConfig = store.data?.config?.adiantamentos || [];
+  const inabitaveis = Object.values(contatosMap).filter(c => c.inabitavel || c.isento).length;
   const taxaAtual = store.data?.config?.taxa_condominio || 50;
-  const unidadesAtivas = PONTUALIDADE_TOTAL_UNIDADES - inabitaveis;
+  const adiantadosNesMes = getAllAptos().filter(k => {
+    if (contatosMap[k]?.inabitavel || contatosMap[k]?.isento) return false;
+    return isAdiantadoParaMes(k, ano, mes, adiantamentosConfig);
+  }).length;
+  const unidadesAtivas = PONTUALIDADE_TOTAL_UNIDADES - inabitaveis - adiantadosNesMes;
   const receitaEsperada = unidadesAtivas * taxaAtual;
   const pctReceita = receitaEsperada > 0 ? Math.round((totais.totalReceitas / receitaEsperada) * 100) : 0;
 
