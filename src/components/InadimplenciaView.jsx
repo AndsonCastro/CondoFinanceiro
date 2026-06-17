@@ -38,7 +38,9 @@ export default function InadimplenciaView({ data }) {
       Object.keys(data.anos[ano].meses || {}).sort((a, b) => a - b).forEach(mes => {
         const mesNum = parseInt(mes);
         const m = data.anos[ano].meses[mes];
-        if (m?.pagamentos_aptos && Object.keys(m.pagamentos_aptos).length > 0) {
+        const isGestao = anoNum > 2026 || (anoNum === 2026 && mesNum >= 5);
+        const temChecklist = m?.pagamentos_aptos && Object.keys(m.pagamentos_aptos).length > 0;
+        if (isGestao || temChecklist) {
           result.push({ ano: anoNum, mes: mesNum });
         }
       });
