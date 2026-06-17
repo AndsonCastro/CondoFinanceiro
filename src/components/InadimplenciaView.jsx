@@ -7,6 +7,7 @@ import { Card, SectionHeader } from './UI';
 const STATUS_COLOR = {
   ate10:     'var(--green)',
   apos10:    'var(--yellow)',
+  tardio:    '#818cf8',
   nao_pago:  'var(--red)',
   sem_dado:  'var(--border2)',
   adiantado: '#2dd4bf',
@@ -15,6 +16,7 @@ const STATUS_COLOR = {
 const STATUS_LABEL = {
   ate10:     'Pago até dia 10',
   apos10:    'Pago após dia 10',
+  tardio:    'Pago em outro mês',
   nao_pago:  'Não pago',
   sem_dado:  'Sem registro',
   adiantado: 'Adiantado',
@@ -58,6 +60,7 @@ export default function InadimplenciaView({ data }) {
     const s = m.pagamentos_aptos?.[key];
     if (s === 'ate10') return 'ate10';
     if (s === 'apos10') return 'apos10';
+    if (m.pagamentos_tardios?.[key]) return 'tardio';
     return 'nao_pago';
   };
 
@@ -69,7 +72,7 @@ export default function InadimplenciaView({ data }) {
         if (s !== 'sem_dado') {
           total++;
           if (s === 'ate10') ate10++;
-          else if (s === 'apos10') apos10++;
+          else if (s === 'apos10' || s === 'tardio') apos10++;
           else if (s === 'adiantado') adiantado++;
           else nao_pago++;
         }
@@ -86,7 +89,7 @@ export default function InadimplenciaView({ data }) {
         if (s !== 'sem_dado') {
           total++;
           if (s === 'ate10') ate10++;
-          else if (s === 'apos10') apos10++;
+          else if (s === 'apos10' || s === 'tardio') apos10++;
           else if (s === 'adiantado') adiantado++;
           else nao_pago++;
         }
