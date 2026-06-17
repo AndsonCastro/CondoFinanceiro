@@ -73,12 +73,18 @@ export default function useStore() {
     const _CONT14   = stored.config?.contatos || {};
     const _TAXA14   = stored.config?.taxa_condominio || 80;
     const _HAB14    = _ALL14.filter(k => !_CONT14[k]?.inabitavel && !_CONT14[k]?.isento);
+    const _nowD = new Date();
+    const _anoAtualD = _nowD.getFullYear();
+    const _mesAtualD = _nowD.getMonth() + 1;
+    // Mês de início da gestão: primeiro mês real do condomínio
+    const _GESTAO_ANO = 2026, _GESTAO_MES = 5;
     let _criou14 = false;
     let _p14ano = 2025, _p14mes = 4;
     for (let i = 0; i < 14; i++) {
       if (!stored.anos[_p14ano]) stored.anos[_p14ano] = { meses: {} };
       if (!stored.anos[_p14ano].meses) stored.anos[_p14ano].meses = {};
-      const _isMesAtual = _p14ano === 2026 && _p14mes === 5;
+      // Meses dentro do período de gestão (>= Mai/2026): só remove B7-102, preserva resto
+      const _isGestao = _p14ano > _GESTAO_ANO || (_p14ano === _GESTAO_ANO && _p14mes >= _GESTAO_MES);
       if (!stored.anos[_p14ano].meses[_p14mes]) {
         // Mês não existe: cria completo
         const pags = {};
@@ -92,8 +98,15 @@ export default function useStore() {
           despesas: [], pendencias: [], pagamentos_tardios: {}, notas: '',
         };
         _criou14 = true;
-      } else if (!_isMesAtual) {
-        // Mês existe e não é o mês atual: garante que B7-102 está ausente e demais pagos
+      } else if (_isGestao) {
+        // Mês de gestão existente: APENAS remove B7-102 se estiver marcado como pago
+        const m = stored.anos[_p14ano].meses[_p14mes];
+        if (m.pagamentos_aptos?.['B7-102']) {
+          delete m.pagamentos_aptos['B7-102'];
+          _criou14 = true;
+        }
+      } else {
+        // Mês pré-gestão existente: força todos como pagos, B7-102 ausente
         const m = stored.anos[_p14ano].meses[_p14mes];
         if (!m.pagamentos_aptos) m.pagamentos_aptos = {};
         delete m.pagamentos_aptos['B7-102'];
