@@ -369,7 +369,6 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
     for (const [mesStr, mesData] of Object.entries(anoData.meses || {}).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))) {
       const mesNum = parseInt(mesStr);
       if (anoNum > anoAtual || (anoNum === anoAtual && mesNum >= mesAtual)) continue;
-      if (anoNum < 2026 || (anoNum === 2026 && mesNum < 5)) continue;
       const { pagamentos_aptos = {}, pagamentos_tardios = {} } = mesData;
       // Só inclui meses onde o checklist foi usado E há ao menos 1 pendente
       if (Object.keys(pagamentos_aptos).length > 0 && todosAptos.some(k => !pagamentos_aptos[k]))

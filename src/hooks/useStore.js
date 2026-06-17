@@ -78,7 +78,9 @@ export default function useStore() {
     for (let i = 0; i < 14; i++) {
       if (!stored.anos[_p14ano]) stored.anos[_p14ano] = { meses: {} };
       if (!stored.anos[_p14ano].meses) stored.anos[_p14ano].meses = {};
+      const _isMesAtual = _p14ano === 2026 && _p14mes === 5;
       if (!stored.anos[_p14ano].meses[_p14mes]) {
+        // Mês não existe: cria completo
         const pags = {};
         _HAB14.forEach(k => { if (k !== 'B7-102') pags[k] = 'ate10'; });
         stored.anos[_p14ano].meses[_p14mes] = {
@@ -89,6 +91,13 @@ export default function useStore() {
           receitas: [{ id: `__b7102_inad_${_p14ano}_${_p14mes}__`, descricao: 'Taxa de Condomínio', categoria: 'Taxa de Condomínio', valor: Object.keys(pags).length * _TAXA14, _auto: true }],
           despesas: [], pendencias: [], pagamentos_tardios: {}, notas: '',
         };
+        _criou14 = true;
+      } else if (!_isMesAtual) {
+        // Mês existe e não é o mês atual: garante que B7-102 está ausente e demais pagos
+        const m = stored.anos[_p14ano].meses[_p14mes];
+        if (!m.pagamentos_aptos) m.pagamentos_aptos = {};
+        delete m.pagamentos_aptos['B7-102'];
+        _HAB14.forEach(k => { if (k !== 'B7-102') m.pagamentos_aptos[k] = 'ate10'; });
         _criou14 = true;
       }
       _p14mes++; if (_p14mes > 12) { _p14mes = 1; _p14ano++; }
