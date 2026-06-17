@@ -49,7 +49,13 @@ export default function InadimplenciaView({ data }) {
   }, [data]);
 
   const aptos = useMemo(() => {
-    const todos = getAllAptos().filter(k => !inabitaveis.has(k));
+    const todos = getAllAptos()
+      .filter(k => !inabitaveis.has(k))
+      .sort((a, b) => {
+        const [, bA, aA] = a.match(/^B(\d+)-(\d+)$/);
+        const [, bB, aB] = b.match(/^B(\d+)-(\d+)$/);
+        return parseInt(bA) - parseInt(bB) || parseInt(aA) - parseInt(aB);
+      });
     if (filtroBloco === 'todos') return todos;
     return todos.filter(k => k.startsWith(`B${filtroBloco}-`));
   }, [filtroBloco, inabitaveis]);
