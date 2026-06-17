@@ -33,7 +33,11 @@ export default function InadimplenciaView({ data }) {
     const result = [];
     Object.keys(data.anos || {}).sort().forEach(ano => {
       Object.keys(data.anos[ano].meses || {}).sort((a, b) => a - b).forEach(mes => {
-        result.push({ ano: parseInt(ano), mes: parseInt(mes) });
+        const m = data.anos[ano].meses[mes];
+        // Só inclui meses onde o checklist foi usado (tem ao menos um pagamento registrado)
+        if (m?.pagamentos_aptos && Object.keys(m.pagamentos_aptos).length > 0) {
+          result.push({ ano: parseInt(ano), mes: parseInt(mes) });
+        }
       });
     });
     return result;
