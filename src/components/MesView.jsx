@@ -362,17 +362,16 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
 
   const todosAptos = getAllAptos().filter(k => !contatos[k]?.inabitavel && !contatos[k]?.isento);
 
-  // Colunas: meses anteriores que têm pelo menos 1 apt pendente (a partir de Mai/2026)
-  const INAD_ANO_INICIO = 2026, INAD_MES_INICIO = 5;
+  // Colunas: meses anteriores que têm pelo menos 1 apt pendente
   const colunas = [];
   for (const [anoStr, anoData] of Object.entries(store.data?.anos || {}).sort()) {
     const anoNum = parseInt(anoStr);
     for (const [mesStr, mesData] of Object.entries(anoData.meses || {}).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))) {
       const mesNum = parseInt(mesStr);
       if (anoNum > anoAtual || (anoNum === anoAtual && mesNum >= mesAtual)) continue;
-      if (anoNum < INAD_ANO_INICIO || (anoNum === INAD_ANO_INICIO && mesNum < INAD_MES_INICIO)) continue;
       const { pagamentos_aptos = {}, pagamentos_tardios = {} } = mesData;
-      if (todosAptos.some(k => !pagamentos_aptos[k]))
+      // Só inclui meses onde o checklist foi usado E há ao menos 1 pendente
+      if (Object.keys(pagamentos_aptos).length > 0 && todosAptos.some(k => !pagamentos_aptos[k]))
         colunas.push({ anoRef: anoNum, mesRef: mesNum, pagamentos_aptos, pagamentos_tardios });
     }
   }
