@@ -370,8 +370,10 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
       const mesNum = parseInt(mesStr);
       if (anoNum > anoAtual || (anoNum === anoAtual && mesNum >= mesAtual)) continue;
       const { pagamentos_aptos = {}, pagamentos_tardios = {} } = mesData;
-      // Só inclui meses onde o checklist foi usado E há ao menos 1 pendente
-      if (Object.keys(pagamentos_aptos).length > 0 && todosAptos.some(k => !pagamentos_aptos[k]))
+      // Meses de gestão (Mai/2026+): inclui mesmo com checklist vazio (todos inadimplentes)
+      // Meses anteriores: só inclui se checklist foi usado (exclui seed 2021-2022)
+      const isGestao = anoNum > 2026 || (anoNum === 2026 && mesNum >= 5);
+      if ((isGestao || Object.keys(pagamentos_aptos).length > 0) && todosAptos.some(k => !pagamentos_aptos[k]))
         colunas.push({ anoRef: anoNum, mesRef: mesNum, pagamentos_aptos, pagamentos_tardios });
     }
   }
