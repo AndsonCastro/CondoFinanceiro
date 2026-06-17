@@ -62,30 +62,11 @@ const deepMerge = (target, source) => {
 export default function useStore() {
   const [data, setData] = useState(() => {
     const stored = loadData();
-    if (!stored.anos || Object.keys(stored.anos).length === 0) return EMPTY_DATA;
-    // Migra adiantamentos v1 (qtd_meses incluía mês de origem) → v2 (apenas meses futuros)
-    for (const adt of stored.config?.adiantamentos || []) {
-      if (!adt._v2 && adt.qtd_meses > 0) {
-        adt.qtd_meses -= 1;
-        adt._v2 = true;
-        // Corrige também a receita vinculada (valor e descrição)
-        const q = adt.qtd_meses;
-        for (const anoData of Object.values(stored.anos || {})) {
-          for (const mesData of Object.values(anoData.meses || {})) {
-            for (const r of mesData.receitas || []) {
-              if (r._adt_id === adt.id) {
-                r.descricao = `Adiantamento (${q} ${q === 1 ? 'mês' : 'meses'})`;
-                r.valor = Math.round(q * adt.taxa * 100) / 100;
-              }
-            }
-          }
-        }
-      }
-    }
-    migrateTardioValues(stored);
+    if (!stored.anos) stored.anos = {};
+    if (!stored.config.adiantamentos) stored.config.adiantamentos = [];
 
     // Auto-cria 14 meses de inadimplência para B7-102 (Abr/2025 → Mai/2026)
-    // Apenas cria meses que ainda não existem — não sobrescreve dados reais
+    // Roda sempre — inclusive em instalação limpa (localStorage vazio)
     const _BLOCOS14 = [1,3,5,7,2,4,6,8];
     const _APTOS14  = ['101','102','201','202'];
     const _ALL14    = _BLOCOS14.flatMap(b => _APTOS14.map(a => `B${b}-${a}`));
@@ -96,6 +77,7 @@ export default function useStore() {
     let _p14ano = 2025, _p14mes = 4;
     for (let i = 0; i < 14; i++) {
       if (!stored.anos[_p14ano]) stored.anos[_p14ano] = { meses: {} };
+      if (!stored.anos[_p14ano].meses) stored.anos[_p14ano].meses = {};
       if (!stored.anos[_p14ano].meses[_p14mes]) {
         const pags = {};
         _HAB14.forEach(k => { if (k !== 'B7-102') pags[k] = 'ate10'; });
@@ -112,6 +94,26 @@ export default function useStore() {
       _p14mes++; if (_p14mes > 12) { _p14mes = 1; _p14ano++; }
     }
     if (_criou14) saveData(stored);
+
+    // Migra adiantamentos v1 → v2
+    for (const adt of stored.config?.adiantamentos || []) {
+      if (!adt._v2 && adt.qtd_meses > 0) {
+        adt.qtd_meses -= 1;
+        adt._v2 = true;
+        const q = adt.qtd_meses;
+        for (const anoData of Object.values(stored.anos || {})) {
+          for (const mesData of Object.values(anoData.meses || {})) {
+            for (const r of mesData.receitas || []) {
+              if (r._adt_id === adt.id) {
+                r.descricao = `Adiantamento (${q} ${q === 1 ? 'mês' : 'meses'})`;
+                r.valor = Math.round(q * adt.taxa * 100) / 100;
+              }
+            }
+          }
+        }
+      }
+    }
+    migrateTardioValues(stored);
 
     return stored;
   });
