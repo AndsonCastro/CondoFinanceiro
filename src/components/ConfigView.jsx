@@ -18,7 +18,7 @@ export default function ConfigView({ config, updateConfig, data, importData, res
   const [contatosForm, setContatosForm] = useState(() => {
     const base = {};
     TODOS_APTOS.forEach(key => {
-      base[key] = { nome: '', tel1: '', tel2: '', proprietario: '', contato1: '', contato2: '', inabitavel: false, isento: false, responsavel: false, vencimento: '', historico_inad_meses: 0, ...(config.contatos?.[key] || {}) };
+      base[key] = { nome: '', tel1: '', tel2: '', proprietario: '', contato1: '', contato2: '', inabitavel: false, isento: false, responsavel: false, vencimento: '', ...(config.contatos?.[key] || {}) };
     });
     return base;
   });
@@ -311,7 +311,7 @@ export default function ConfigView({ config, updateConfig, data, importData, res
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 1240 }}>
             {/* Cabeçalho */}
-            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 120px 120px 36px 1fr 120px 120px 36px 75px 65px 55px 85px 60px', gap: 6, padding: '4px 8px 8px', marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 120px 120px 36px 1fr 120px 120px 36px 75px 65px 55px 85px', gap: 6, padding: '4px 8px 8px', marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Apto</span>
               <span style={{ fontSize: 10, color: 'var(--blue)', fontWeight: 700, letterSpacing: 1 }}>— CONDÔMINO —</span>
               <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Telefone 1</span>
@@ -325,7 +325,6 @@ export default function ConfigView({ config, updateConfig, data, importData, res
               <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Isento</span>
               <span style={{ fontSize: 10, color: 'var(--blue)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Venc.</span>
               <span style={{ fontSize: 10, color: 'var(--yellow)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Responsável</span>
-              <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }} title="Meses inadimplentes antes de Mai/2026">Hist. Inad.</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {TODOS_APTOS.filter(key => key.toLowerCase().includes(filtroApto.toLowerCase())).map(key => {
@@ -348,7 +347,7 @@ export default function ConfigView({ config, updateConfig, data, importData, res
                   </button>
                 ) : null;
                 return (
-                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 120px 120px 36px 1fr 120px 120px 36px 75px 65px 55px 85px 60px', gap: 6, alignItems: 'center', padding: '4px 8px', borderRadius: 8, background: rowBg, opacity: disabled ? 0.7 : 1 }}>
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 120px 120px 36px 1fr 120px 120px 36px 75px 65px 55px 85px', gap: 6, alignItems: 'center', padding: '4px 8px', borderRadius: 8, background: rowBg, opacity: disabled ? 0.7 : 1 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: keyColor, fontFamily: 'var(--font-mono)' }}>{key}</span>
                     <input value={row.nome || ''} onChange={e => updateContato(key, 'nome', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', opacity: disabled ? 0.4 : 1 }} />
                     <input value={row.tel1 || ''} onChange={e => updateContato(key, 'tel1', e.target.value)} disabled={disabled} style={{ fontSize: 12, padding: '5px 8px', fontFamily: 'var(--font-mono)', opacity: disabled ? 0.4 : 1 }} />
@@ -377,16 +376,6 @@ export default function ConfigView({ config, updateConfig, data, importData, res
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={responsavel} onChange={e => updateContato(key, 'responsavel', e.target.checked)} disabled={!row.proprietario || !row.contato1} title="Proprietário é o responsável pelo pagamento da taxa" style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--yellow)', opacity: (!row.proprietario || !row.contato1) ? 0.3 : 1 }} />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      <input
-                        type="number" min="0" max="999"
-                        value={row.historico_inad_meses || ''}
-                        onChange={e => updateContato(key, 'historico_inad_meses', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
-                        placeholder="0"
-                        title="Meses inadimplentes antes do período rastreado (antes de Mai/2026)"
-                        style={{ width: 50, fontSize: 12, padding: '5px 6px', textAlign: 'center', accentColor: 'var(--red)' }}
-                      />
                     </div>
                   </div>
                 );

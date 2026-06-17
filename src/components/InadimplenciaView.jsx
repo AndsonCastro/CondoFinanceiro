@@ -37,8 +37,6 @@ export default function InadimplenciaView({ data }) {
       const anoNum = parseInt(ano);
       Object.keys(data.anos[ano].meses || {}).sort((a, b) => a - b).forEach(mes => {
         const mesNum = parseInt(mes);
-        // Gestão começa em Mai/2026 — ignora tudo antes
-        if (anoNum < 2026 || (anoNum === 2026 && mesNum < 5)) return;
         const m = data.anos[ano].meses[mes];
         if (m?.pagamentos_aptos && Object.keys(m.pagamentos_aptos).length > 0) {
           result.push({ ano: anoNum, mes: mesNum });

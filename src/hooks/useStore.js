@@ -82,7 +82,38 @@ export default function useStore() {
         }
       }
     }
-    return migrateTardioValues(stored);
+    migrateTardioValues(stored);
+
+    // Auto-cria 14 meses de inadimplência para B7-102 (Abr/2025 → Mai/2026)
+    // Apenas cria meses que ainda não existem — não sobrescreve dados reais
+    const _BLOCOS14 = [1,3,5,7,2,4,6,8];
+    const _APTOS14  = ['101','102','201','202'];
+    const _ALL14    = _BLOCOS14.flatMap(b => _APTOS14.map(a => `B${b}-${a}`));
+    const _CONT14   = stored.config?.contatos || {};
+    const _TAXA14   = stored.config?.taxa_condominio || 80;
+    const _HAB14    = _ALL14.filter(k => !_CONT14[k]?.inabitavel && !_CONT14[k]?.isento);
+    let _criou14 = false;
+    let _p14ano = 2025, _p14mes = 4;
+    for (let i = 0; i < 14; i++) {
+      if (!stored.anos[_p14ano]) stored.anos[_p14ano] = { meses: {} };
+      if (!stored.anos[_p14ano].meses[_p14mes]) {
+        const pags = {};
+        _HAB14.forEach(k => { if (k !== 'B7-102') pags[k] = 'ate10'; });
+        stored.anos[_p14ano].meses[_p14mes] = {
+          id: `${_p14ano}-${String(_p14mes).padStart(2,'0')}`,
+          mes: _p14mes, ano: _p14ano, saldo_inicial: 0,
+          pontualidade: { total_unidades: _HAB14.length, pago_ate_dia10: Object.keys(pags).length, pago_apos_dia10: 0 },
+          pagamentos_aptos: pags,
+          receitas: [{ id: `__b7102_inad_${_p14ano}_${_p14mes}__`, descricao: 'Taxa de Condomínio', categoria: 'Taxa de Condomínio', valor: Object.keys(pags).length * _TAXA14, _auto: true }],
+          despesas: [], pendencias: [], pagamentos_tardios: {}, notas: '',
+        };
+        _criou14 = true;
+      }
+      _p14mes++; if (_p14mes > 12) { _p14mes = 1; _p14ano++; }
+    }
+    if (_criou14) saveData(stored);
+
+    return stored;
   });
 
   // Persiste automaticamente
