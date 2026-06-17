@@ -378,8 +378,11 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
 
   if (!colunas.length) return null;
 
-  // Linhas: apenas aptos com pelo menos 1 mês pendente
-  const linhas = todosAptos.filter(k => colunas.some(c => !c.pagamentos_aptos[k]));
+  // Linhas: aptos com pelo menos 1 mês pendente OU com histórico anterior
+  const linhas = todosAptos.filter(k =>
+    colunas.some(c => !c.pagamentos_aptos[k]) || (contatos[k]?.historico_inad_meses > 0)
+  );
+  const temHistoricoAntes = linhas.some(k => (contatos[k]?.historico_inad_meses || 0) > 0);
   if (!linhas.length) return null;
 
   const totalPendentes = colunas.reduce((s, { anoRef, mesRef, pagamentos_aptos, pagamentos_tardios }) =>
@@ -410,6 +413,11 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
               <th style={{ padding: '6px 16px 6px 6px', textAlign: 'left', color: 'var(--text)', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
                 Apartamento
               </th>
+              {temHistoricoAntes && (
+                <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 700, fontSize: 10, color: 'rgba(239,68,68,0.7)', whiteSpace: 'nowrap', borderRight: '1px solid var(--border)' }}>
+                  Hist.
+                </th>
+              )}
               {colunas.map(({ anoRef, mesRef }) => (
                 <th key={`${anoRef}-${mesRef}`} style={{ padding: '6px 6px', textAlign: 'center', fontWeight: 700, whiteSpace: 'nowrap', minWidth: 54 }}>
                   <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 700 }}>{MESES[mesRef - 1]}</div>
@@ -429,6 +437,18 @@ const InadimplentesAcumulados = ({ anoAtual, mesAtual, store }) => {
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 13, color: 'var(--text)' }}>{key}</span>
                     {contato.nome && <span style={{ marginLeft: 8, fontFamily: 'var(--font-ui)', fontWeight: 500, fontSize: 12, color: 'var(--muted)' }}>{contato.nome}</span>}
                   </td>
+                  {temHistoricoAntes && (() => {
+                    const hist = contato.historico_inad_meses || 0;
+                    return (
+                      <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid var(--border)' }}>
+                        {hist > 0 ? (
+                          <span title={`${hist} meses inadimplente antes de Mai/2026`} style={{ fontSize: 11, fontWeight: 800, color: 'var(--red)', background: 'rgba(239,68,68,0.12)', padding: '2px 7px', borderRadius: 10 }}>
+                            {hist}m
+                          </span>
+                        ) : null}
+                      </td>
+                    );
+                  })()}
                   {colunas.map(({ anoRef, mesRef, pagamentos_aptos, pagamentos_tardios }) => {
                     if (pagamentos_aptos[key]) {
                       return <td key={`${anoRef}-${mesRef}`} style={{ padding: '5px 6px' }}><div style={{ width: 24, height: 24, margin: '0 auto' }} /></td>;

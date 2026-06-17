@@ -94,10 +94,12 @@ export default function InadimplenciaView({ data }) {
           else nao_pago++;
         }
       });
-      return { key, ate10, apos10, nao_pago, adiantado, total, pct: total > 0 ? Math.round((ate10 / total) * 100) : 0 };
-    }), [mesesOrdenados, data, inabitaveis, adiantamentos]);
+      const historico = contatos[key]?.historico_inad_meses || 0;
+      return { key, ate10, apos10, nao_pago, adiantado, total, historico, pct: total > 0 ? Math.round((ate10 / total) * 100) : 0 };
+    }), [mesesOrdenados, data, inabitaveis, adiantamentos, contatos]);
 
-  const topInadimp = [...aptoStats].sort((a, b) => b.nao_pago - a.nao_pago).slice(0, 5);
+  const temHistorico = aptoStats.some(a => a.historico > 0);
+  const topInadimp = [...aptoStats].sort((a, b) => (b.nao_pago + b.historico) - (a.nao_pago + a.historico)).slice(0, 5);
 
   if (!mesesOrdenados.length) {
     return (
@@ -133,19 +135,27 @@ export default function InadimplenciaView({ data }) {
       </div>
 
       {/* Top inadimplentes */}
-      {topInadimp.some(a => a.nao_pago > 0) && (
+      {topInadimp.some(a => (a.nao_pago + a.historico) > 0) && (
         <Card style={{ marginBottom: 16 }}>
           <SectionHeader>🚨 Maiores Inadimplentes</SectionHeader>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {topInadimp.filter(a => a.nao_pago > 0).map(a => (
-              <div key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, minWidth: 70, fontSize: 13 }}>{a.key}</span>
-                <div style={{ flex: 1, background: 'var(--surface2)', borderRadius: 6, height: 8, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${a.total > 0 ? (a.nao_pago / a.total) * 100 : 0}%`, background: 'var(--red)', borderRadius: 6 }} />
+            {topInadimp.filter(a => (a.nao_pago + a.historico) > 0).map(a => {
+              const total = a.nao_pago + a.historico;
+              const maxTotal = Math.max(...topInadimp.map(x => x.nao_pago + x.historico), 1);
+              return (
+                <div key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, minWidth: 70, fontSize: 13 }}>{a.key}</span>
+                  <div style={{ flex: 1, background: 'var(--surface2)', borderRadius: 6, height: 8, overflow: 'hidden', display: 'flex' }}>
+                    {a.nao_pago > 0 && <div style={{ height: '100%', width: `${(a.nao_pago / maxTotal) * 100}%`, background: 'var(--red)', borderRadius: a.historico ? '6px 0 0 6px' : 6 }} />}
+                    {a.historico > 0 && <div style={{ height: '100%', width: `${(a.historico / maxTotal) * 100}%`, background: 'rgba(239,68,68,0.35)', borderRadius: a.nao_pago ? '0 6px 6px 0' : 6 }} />}
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, minWidth: 80, textAlign: 'right' }}>
+                    {total} não pago{total > 1 ? 's' : ''}
+                    {a.historico > 0 && <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 500 }}> (+{a.historico} hist.)</span>}
+                  </span>
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, minWidth: 80, textAlign: 'right' }}>{a.nao_pago} não pago{a.nao_pago > 1 ? 's' : ''}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}
@@ -177,6 +187,12 @@ export default function InadimplenciaView({ data }) {
                 <th style={{ padding: '6px 12px', textAlign: 'left', color: 'var(--muted)', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
                   Apartamento
                 </th>
+                {temHistorico && (
+                  <th style={{ padding: '6px 4px', textAlign: 'center', color: 'rgba(239,68,68,0.6)', fontWeight: 700, fontSize: 9, whiteSpace: 'nowrap', minWidth: 40, borderRight: '1px solid var(--border)' }}>
+                    <div>Hist.</div>
+                    <div style={{ fontSize: 8, opacity: 0.7 }}>antes</div>
+                  </th>
+                )}
                 {mesesOrdenados.map(({ ano, mes }) => (
                   <th key={`${ano}-${mes}`} style={{ padding: '6px 4px', textAlign: 'center', color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap', minWidth: 44 }}>
                     <div style={{ fontSize: 9 }}>{MESES[mes - 1]}</div>
@@ -199,6 +215,18 @@ export default function InadimplenciaView({ data }) {
                       <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12 }}>{key}</div>
                       {contatos[key]?.nome && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1 }}>{contatos[key].nome}</div>}
                     </td>
+                    {temHistorico && (() => {
+                      const hist = contatos[key]?.historico_inad_meses || 0;
+                      return (
+                        <td style={{ padding: '4px', textAlign: 'center', borderRight: '1px solid var(--border)' }}>
+                          {hist > 0 ? (
+                            <span title={`${hist} meses inadimplente antes do período rastreado`} style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, color: 'var(--red)', background: 'rgba(239,68,68,0.12)', padding: '1px 5px', borderRadius: 10 }}>
+                              {hist}m
+                            </span>
+                          ) : null}
+                        </td>
+                      );
+                    })()}
                     {mesesOrdenados.map(({ ano, mes }) => {
                       const s = getStatus(ano, mes, key);
                       return (
