@@ -111,41 +111,24 @@ export const gerarRelatorioPDF = (mesData, config) => {
       ['Movimento Líquido',  fmt(totais.movLiquido)],
       ['Saldo Final',        fmt(totais.saldoFinal)],
     ],
-    theme: 'plain',
+    theme: 'striped',
     headStyles: { fillColor: COR_AZUL, textColor: 255, fontStyle: 'bold' },
     columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-    bodyStyles: { fontSize: 11, fontStyle: 'bold', cellPadding: 5 },
+    bodyStyles: { fontSize: 10 },
     didParseCell: (data) => {
       if (data.section !== 'body') return;
       const i = data.row.index;
-      // Saldo Inicial (0) e Receitas (1) → verde
-      if (i === 0 || i === 1) {
-        data.cell.styles.textColor = [0, 140, 80];
-        data.cell.styles.fillColor = [230, 255, 245];
-      }
-      // Despesas (2) → vermelho
-      if (i === 2) {
-        data.cell.styles.textColor = [180, 0, 30];
-        data.cell.styles.fillColor = [255, 235, 238];
-      }
-      // Movimento Líquido (3) → verde ou vermelho conforme valor
-      if (i === 3) {
-        data.cell.styles.textColor = movPositivo ? [0, 120, 70] : [180, 0, 30];
-        data.cell.styles.fillColor = movPositivo ? [240, 255, 250] : [255, 240, 242];
-      }
-      // Saldo Final (4) → verde destaque
-      if (i === 4) {
-        data.cell.styles.textColor = [0, 140, 80];
-        data.cell.styles.fillColor = [200, 248, 225];
-        data.cell.styles.fontSize = 13;
-      }
+      if (i === 0 || i === 1) data.cell.styles.textColor = [0, 130, 70];
+      if (i === 2) data.cell.styles.textColor = [190, 0, 30];
+      if (i === 3) data.cell.styles.textColor = movPositivo ? [0, 130, 70] : [190, 0, 30];
+      if (i === 4) { data.cell.styles.textColor = [0, 130, 70]; data.cell.styles.fontStyle = 'bold'; }
     },
     margin: { left: 14, right: 14 },
   });
 
   // ── Pontualidade ───────────────────────────────────────────────────────────
   const y3 = doc.lastAutoTable.finalY + 8;
-  if (y3 < 250) {
+  if (y3 < 270) {
     doc.setFontSize(11); doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('Pontualidade de Pagamentos', 14, y3);
