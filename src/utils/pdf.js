@@ -155,14 +155,14 @@ export const gerarRelatorioPDF = (mesData, config) => {
 
   // ── Notas ──────────────────────────────────────────────────────────────────
   if (mesData.notas?.trim()) {
-    const yn = (doc.lastAutoTable?.finalY || y3) + 8;
-    if (yn < 260) {
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-      doc.text('Observações:', 14, yn);
-      doc.setFont('helvetica', 'normal');
-      const lines = doc.splitTextToSize(mesData.notas, 182);
-      doc.text(lines, 14, yn + 6);
-    }
+    let yn = (doc.lastAutoTable?.finalY || y3) + 8;
+    const pageH2 = doc.internal.pageSize.height;
+    if (yn > pageH2 - 40) { doc.addPage(); yn = 20; }
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+    doc.text('Observações:', 14, yn);
+    doc.setFont('helvetica', 'normal');
+    const lines = doc.splitTextToSize(mesData.notas, 182);
+    doc.text(lines, 14, yn + 6);
   }
 
   // ── Rodapé ─────────────────────────────────────────────────────────────────
