@@ -40,26 +40,8 @@ export const gerarRelatorioPDF = (mesData, config) => {
   doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 196, 21, { align: 'right' });
   doc.setTextColor(0, 0, 0);
 
-  // ── Resumo do mês ──────────────────────────────────────────────────────────
-  autoTable(doc, {
-    startY: 36,
-    head: [['Indicador', { content: 'Valor', styles: { halign: 'right' } }]],
-    body: [
-      ['Saldo Inicial', fmt(mesData.saldo_inicial)],
-      ['Total de Receitas', fmt(totais.totalReceitas)],
-      ['Total de Despesas', fmt(totais.totalDespesas)],
-      ['Movimento Líquido', fmt(totais.movLiquido)],
-      ['Saldo Final', fmt(totais.saldoFinal)],
-    ],
-    theme: 'striped',
-    headStyles: { fillColor: COR_AZUL, textColor: 255, fontStyle: 'bold' },
-    columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-    bodyStyles: { fontSize: 10 },
-    margin: { left: 14, right: 14 },
-  });
-
   // ── Receitas ───────────────────────────────────────────────────────────────
-  const y1 = doc.lastAutoTable.finalY + 8;
+  const y1 = 36;
   doc.setFontSize(11); doc.setFont('helvetica', 'bold');
   doc.setTextColor(...COR_VERDE);
   doc.text('Receitas', 14, y1);
@@ -109,6 +91,55 @@ export const gerarRelatorioPDF = (mesData, config) => {
     footStyles: { fillColor: [255, 235, 238], textColor: [150, 0, 30], fontStyle: 'bold' },
     columnStyles: { 2: { halign: 'right' } },
     bodyStyles: { fontSize: 10 },
+    margin: { left: 14, right: 14 },
+  });
+
+  // ── Resumo financeiro (Indicadores) ────────────────────────────────────────
+  const yInd = doc.lastAutoTable.finalY + 8;
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Resumo Financeiro', 14, yInd);
+
+  const movPositivo = totais.movLiquido >= 0;
+  autoTable(doc, {
+    startY: yInd + 4,
+    head: [['Indicador', { content: 'Valor', styles: { halign: 'right' } }]],
+    body: [
+      ['Saldo Inicial',      fmt(mesData.saldo_inicial)],
+      ['Total de Receitas',  fmt(totais.totalReceitas)],
+      ['Total de Despesas',  fmt(totais.totalDespesas)],
+      ['Movimento Líquido',  fmt(totais.movLiquido)],
+      ['Saldo Final',        fmt(totais.saldoFinal)],
+    ],
+    theme: 'plain',
+    headStyles: { fillColor: COR_AZUL, textColor: 255, fontStyle: 'bold' },
+    columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+    bodyStyles: { fontSize: 11, fontStyle: 'bold', cellPadding: 5 },
+    didParseCell: (data) => {
+      if (data.section !== 'body') return;
+      const i = data.row.index;
+      // Saldo Inicial (0) e Receitas (1) → verde
+      if (i === 0 || i === 1) {
+        data.cell.styles.textColor = [0, 140, 80];
+        data.cell.styles.fillColor = [230, 255, 245];
+      }
+      // Despesas (2) → vermelho
+      if (i === 2) {
+        data.cell.styles.textColor = [180, 0, 30];
+        data.cell.styles.fillColor = [255, 235, 238];
+      }
+      // Movimento Líquido (3) → verde ou vermelho conforme valor
+      if (i === 3) {
+        data.cell.styles.textColor = movPositivo ? [0, 120, 70] : [180, 0, 30];
+        data.cell.styles.fillColor = movPositivo ? [240, 255, 250] : [255, 240, 242];
+      }
+      // Saldo Final (4) → verde destaque
+      if (i === 4) {
+        data.cell.styles.textColor = [0, 140, 80];
+        data.cell.styles.fillColor = [200, 248, 225];
+        data.cell.styles.fontSize = 13;
+      }
+    },
     margin: { left: 14, right: 14 },
   });
 
